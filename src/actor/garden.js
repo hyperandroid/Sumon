@@ -143,7 +143,7 @@
 (function() {
 	HN.Garden= function() {
         HN.Garden.superclass.constructor.call(this);
-        this.glEnabled= true;
+//        this.glEnabled= true;
 		return this;
 	};
 
@@ -184,14 +184,14 @@
             }
 
             return this;
-		},
+		},/*
         paintActorGL : function(director,time) {
             director.glFlush();
 
             for( var i=0; i<this.grass.length; i++ ) {
                 this.grass[i].paintActorGL(director,time,this.ambient,this.worldModelViewMatrix);
             }
-        },
+        },*/
 		paint : function(director, time){
 
 
