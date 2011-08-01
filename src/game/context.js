@@ -1,5 +1,57 @@
 /**
  */
+
+(function() {
+    HN.GameModes= {
+        classic:  {
+            fixed_table_size:   true,
+            rearrange_on_remove:true,
+            rows_initial:       8,
+            columns_initial:    8,
+            rows_max:           8,
+            columns_max:        8,
+            time_policy:        -500,
+            minTurnTime:        12000,
+            number_policy:      [10,10,10,15,15,15,20,20,25,30,35,40,45,50],
+            name:               'classic'
+        },
+        progressive : {
+            fixed_table_size:   false,
+            rearrange_on_remove:true,
+            rows_initial:       3,
+            columns_initial:    3,
+            rows_max:           8,
+            columns_max:        8,
+            time_policy:        0,
+            number_policy:      [10,10,10,10,10,15,15,15,15,20,25,30,35,40,45,50],
+            name:               'progressive'
+        },
+        respawn : {
+            fixed_table_size:   true,
+            rearrange_on_remove:true,
+            respawn:            true,
+            respawn_time:       22000,
+            rows_initial:       8,
+            columns_initial:    8,
+            rows_max:           8,
+            columns_max:        8,
+            time_policy:        -1000,
+            initial_map:        [
+                    [0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0],
+                    [0,0,0,1,1,0,0,0],
+                    [0,0,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,1,0],
+                    [1,1,1,1,1,1,1,1]
+            ],
+            number_policy:      [10,10,10,10,10,15,15,15,15,20,25,30,35,40,45,50],
+            name:               'progressive'
+        }
+    }
+})();
+
 (function() {
 
     HN.Brick= function() {
@@ -25,13 +77,26 @@
          * @param column
          * @param context the HN.Context instance
          */
-        initialize : function(row, column, context) {
+        initialize : function(row, column, context, removed) {
+
+            removed= removed || false;
+
             this.row=       row;
             this.column=    column;
             this.selected=  false;
-            this.removed=   false;
+            this.removed=   removed;
             this.color=     (Math.random()*context.getNumberColors())>>0;
             this.context=   context;
+
+            this.respawn();
+        },
+        changeSelection : function() {
+            this.selected= !this.selected;
+            this.context.selectionChanged(this);
+        },
+        respawn : function() {
+
+            this.selected= false;
 
             // favorecer los numeros 3..9
             if ( Math.random()>.3 ) {
@@ -49,10 +114,8 @@
             if ( null!=this.delegate ) {
                 this.delegate();
             }
-        },
-        changeSelection : function() {
-            this.selected= !this.selected;
-            this.context.selectionChanged(this);
+
+            return this;
         }
     };
 
@@ -69,9 +132,24 @@
 
         eventListener:  null,   // context listeners
 
+        gameMode:       null,
+
         rows:           0,      // model size in
         columns:        0,      //  rows x columns
         numNumberColors:0,
+        initialRows:    0,
+        initialColumns: 0,
+        currentRows:    0,
+        currentColumns: 0,
+
+        /**
+         * Numero inicial de ladrillos activos en el nivel.
+         * Se puede especificar un mapa de ladrillos activos a traves del gameMode.
+         * Como no tiene porque coincidir con todos los ladrillos de initialRows*initialColumns,
+         * necesito contarlos porque el juego no progresa de la animaci—n de entrada de ladrillos
+         * volando hasta que todos llegan a su sitio.
+         */
+        initialBricks:  0,
 
         data:           null,   // context model. Bricks.
 
@@ -83,7 +161,7 @@
         status:         0,      // <-- control logic -->
         level:          0,
 
-        score:         0,      // game points.
+        score:          0,      // game points.
 
 
         turnTime:       15000,
@@ -105,60 +183,130 @@
 
         /**
          * Called once on game startup.
-         * @param rows an integer indicating game model rows.
-         * @param columns an integer indicating game model columns.
          *
          * @return nothing.
          */
-        create : function( rows, columns, numNumberColors  ) {
-            this.rows=              rows;
-            this.columns=           columns;
+        create : function( maxR, maxC, numNumberColors  ) {
+            this.rows=              maxR;
+            this.columns=           maxC;
             this.numNumberColors=   numNumberColors;
             this.data=              [];
 
             var i,j;
 
-            for( i=0; i<rows; i++ ) {
+            for( i=0; i<this.rows; i++ ) {
                 this.data.push( [] );
-                for( j=0; j<columns; j++ ) {
+                for( j=0; j<this.columns; j++ ) {
                     this.data[i].push( new HN.Brick() );
                 }
             }
 
             return this;
         },
+        setGameMode : function( gameMode) {
+            if ( gameMode!=this.gameMode ) {
+                this.gameMode=          gameMode;
+                this.initialRows=       gameMode.rows_initial;
+                this.initialColumns=    gameMode.columns_initial;
+            }
+
+            this.initialize();
+        },
         getNumberColors : function()  {
             return this.numNumberColors;
         },
         initialize : function() {
+
             this.setStatus( this.ST_STARTGAME );
             this.turnTime= this.turnTimes[this.difficulty];
             this.score=0;
             this.level=0;
             this.setAltitude(0);
+            this.currentRows= this.initialRows;
+            this.currentColumns= this.initialColumns;
             this.nextLevel();
             return this;
         },
-        nextLevel : function() {
+        getLevelActiveBricks : function() {
+            return this.initialBricks;
+        },
+        prepareBricks : function() {
 
             var i,j;
+
+            for( i=0; i<this.rows; i++ ) {
+                for( j=0; j<this.columns; j++ ) {
+                    this.data[i][j].initialize(i,j,this,true);
+                }
+            }
+
+            if ( this.gameMode.initial_map ) {
+                var im= this.gameMode.initial_map;
+
+                this.initialBricks=0;
+                for( i=0; i<this.currentRows; i++ ) {
+                    for( j=0; j<this.currentColumns; j++ ) {
+
+                        var removed= true;
+                        if ( im.length<i ) {
+                            removed= false;
+                        } else {
+                            if ( im[i].length<j ) {
+                                removed= false;
+                            } else {
+                                removed= im[i][j]==0;
+                            }
+                        }
+
+                        this.data[i][j].initialize(i,j,this,removed);
+
+                        if (!removed) {
+                            this.initialBricks++;
+                        }
+                    }
+                }
+
+            } else {
+                this.initialBricks= this.currentRows*this.currentColumns;
+
+                for( i=0; i<this.currentRows; i++ ) {
+                    for( j=0; j<this.currentColumns; j++ ) {
+                        this.data[i][j].initialize(i,j,this,false);
+                    }
+                }
+            }
+        },
+        nextLevel : function() {
 
             this.level++;
             this.fireEvent('context','levelchange',this.level);
 
             this.selectedList=  [];
 
-            for( i=0; i<this.rows; i++ ) {
-                for( j=0; j<this.columns; j++ ) {
-                    this.data[i][j].initialize(i,j,this);
+            // not fixed size.
+            // add one column/row alternatively until reaching rows/columsn size.
+            if ( !this.gameMode.fixed_table_size ) {
+                if ( this.level>1 && (this.currentRows<this.rows || this.currentColumns<this.columns )) {
+                    if ( this.currentRows==this.currentColumns ) {
+                        this.currentColumns++;
+                    } else {
+                        this.currentRows++;
+                    }
                 }
             }
+
+            this.prepareBricks();
 
             this.setStatus( this.ST_INITIALIZING );
 
             if ( this.level>1 ) {
                 // 1 seconds less each level.
-                this.turnTime-=1000;
+                this.turnTime-= this.gameMode.time_policy;
+                if ( this.gameMode.minTurnTime ) {
+                    if ( this.turnTime<this.gameMode.minTurnTime ) {
+                        this.turnTime= this.gameMode.minTurnTime;
+                    }
+                }
             }
 
             return this;
@@ -216,10 +364,12 @@
 
             sum+= brick.value;
 
+            var selected;
+
             if ( sum>this.guessNumber ) {
 
                 brick.selected= false;
-                var selected= this.selectedList.slice(0);
+                selected= this.selectedList.slice(0);
                 for( i=0; i<this.selectedList.length; i++ ) {
                     this.selectedList[i].selected= false;
                 }
@@ -229,11 +379,44 @@
                 this.fireEvent('brick','selectionoverflow', selected );
             } else if ( sum==this.guessNumber ) {
                 this.selectedList.push(brick);
-                var selected= this.selectedList.slice(0);
+                selected= this.selectedList.slice(0);
                 for( i=0; i<this.selectedList.length; i++ ) {
                     this.selectedList[i].selected= false;
                     this.selectedList[i].removed= true;
                 }
+
+                // rearrange bricks if needed
+                if ( this.gameMode.rearrange_on_remove ) {
+                    for( i=0; i<this.selectedList.length; i++ ) {
+                        var r= this.selectedList[i].row;
+                        var c= this.selectedList[i].column;
+
+                        // bajar todos los elementos de columna una posicion.
+                        for( var row= r; row>0; row-- ) {
+                            var move= this.data[row-1][c];
+                            var to=   this.data[row][c];
+
+                            var tmp= move;
+                            this.data[row-1][c]= this.data[row][c];
+                            this.data[row][c]= tmp;
+
+                            // cambiar row del brick. la columna es la misma
+                            tmp= move.row;
+                            move.row= to.row;
+                            to.row= tmp;
+
+                            this.fireEvent(
+                                    'brick',
+                                    'rearranged',
+                                    {
+                                        fromRow :   move.row-1,
+                                        toRow:      move.row,
+                                        column:     c
+                                    });
+                        }
+                    }
+                }
+
                 this.selectedList= [];
 
                 this.fireEvent('brick','selection-cleared', selected );
@@ -291,18 +474,35 @@
              */
             var sum=0;
             var diff= this.brickIncrementByDifficulty[this.difficulty];
-            var min= 10 + (this.level-1)*diff;
+            //var min= 10 + (this.level-1)*diff;
+            var index__= this.level-1;
+            if ( index__>=this.gameMode.number_policy.length ) {
+                index__= this.gameMode.number_policy.length-1;
+            }
+            var min= this.gameMode.number_policy[index__];
             var max= min+diff;
-            for( i=0; i<activeBricks.length; i++ ) {
-                if ( sum+activeBricks[i].value<=max ) {
-                    sum+= activeBricks[i].value;
-                } else {
-                    if ( sum>min ) {
-                        break;
+            var brickCount=0;
+
+            if ( activeBricks.length==1 ) {
+                sum= activeBricks[0].value;
+            } else if ( activeBricks.length==2 ) {
+                sum= activeBricks[0].value+activeBricks[1].value;
+            } else {
+                for( i=0; i<activeBricks.length; i++ ) {
+                    if ( sum+activeBricks[i].value<=max ) {
+                        sum+= activeBricks[i].value;
+                        brickCount++;
+                    } else {
+                        if ( sum>min ) {
+                            break;
+                        }
                     }
                 }
-            }
 
+                if ( brickCount==1 ) {
+                    sum= activeBricks[0].value+activeBricks[1].value;
+                }
+            }
             this.guessNumber= sum;
             this.fireEvent( 'context','guessnumber',this );
 
@@ -310,6 +510,48 @@
         },
         timeUp : function() {
             this.setStatus( this.ST_ENDGAME );
+        },
+        respawn : function() {
+            // comprobar que podemos meter nuevos elementos.
+            var cabenMas= true;
+            var i,j;
+            for( i=0; i<this.currentColumns; i++ ) {
+                // una columna est‡ llena. no seguir.
+                if ( !this.data[0][i].removed ) {
+                    cabenMas= false;
+                    break;
+                }
+            }
+
+            if (!cabenMas) {
+                this.setStatus( this.ST_ENDGAME );
+                return;
+            }
+
+            var respawnData= [];
+            // meter una nueva fila de numeros.
+            for( j=0; j<this.currentColumns; j++ ) {
+                // buscar la fila donde cae el numero
+                for( i=0; i<this.currentRows; i++ ) {
+                    if ( !this.data[i][j].removed ) {
+                        break;
+                    }
+                }
+
+                // i tiene la fila con el ultimo elemento valido
+                i--;
+                this.data[i][j].removed= false;
+                this.data[i][j].selected= false;
+                this.data[i][j].respawn();
+
+                respawnData.push( {
+                    row:    i,
+                    column: j
+                } );
+            }
+
+            this.fireEvent('brick','respawn',respawnData);
+
         },
         /**
          * establece multiplicadores de puntos en funcion de:

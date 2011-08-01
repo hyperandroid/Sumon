@@ -6,15 +6,18 @@ function __CAAT__loadingScene(director) {
     var TIME= 3000;
     var time= new Date().getTime();
 
-    var background= new CAAT.ImageActor().create().setImage( director.getImage('splash'));
+    var background= new CAAT.ActorContainer().
+            setBackgroundImage( director.getImage('splash'), true);
     scene.addChild(background);
 
-    var lading= new CAAT.ImageActor().create().setImage( director.getImage('lading'));
+    var lading= new CAAT.Actor().
+            setBackgroundImage( director.getImage('lading'), true);
     lading.setLocation( director.width-lading.width-10, director.height-lading.height-30 );
     scene.addChild(lading);
 
-    var rueda=  new CAAT.ImageActor().create().setImage( director.getImage('rueda'));
-    rueda.setLocation( lading.x+20, lading.y+10 );
+    var rueda=  new CAAT.Actor().
+            setBackgroundImage( director.getImage('rueda'), true).
+            setLocation( lading.x+20, lading.y+10 );
     scene.addChild(rueda);
     rueda.addBehavior(
             new CAAT.RotateBehavior().
@@ -26,7 +29,7 @@ function __CAAT__loadingScene(director) {
     var percent= new CAAT.TextActor().create().setFont('15px sans-serif');
     scene.addChild(percent);
 
-    var starsImage= new CAAT.CompoundImage().initialize(director.getImage('stars'), 24,6 );
+    var starsImage= new CAAT.SpriteImage().initialize(director.getImage('stars'), 24,6 );
 
     var T= 600;
 
@@ -37,14 +40,13 @@ function __CAAT__loadingScene(director) {
             var offset1= Math.random()*10*(Math.random()<.5?1:-1);
 
             var iindex= (Math.random()*6)>>0;
-            var actorStar= new CAAT.SpriteActor();
+            var actorStar= new CAAT.Actor();
             actorStar.__imageIndex= iindex;
 
             actorStar.
-                    create().
-                    setSpriteImage( starsImage ).
+                    setBackgroundImage(
+                        starsImage.getRef().setAnimationImageIndex( [(Math.random()*6)>>0] ), true ).
                     setLocation( offset0+mouseEvent.point.x, offset1+mouseEvent.point.y).
-                    setAnimationImageIndex( [(Math.random()*6)>>0] ).
                     setDiscardable(true).
                     enableEvents(false).
                     setFrameTime(scene.time, T).
@@ -61,8 +63,8 @@ function __CAAT__loadingScene(director) {
                         new CAAT.GenericBehavior().
                             setFrameTime(scene.time, T).
                             setValues( 1, .1, null, null, function(value,target,actor) {
-                                actor.setAnimationImageIndex( [
-                                        actor.__imageIndex+(23-((23*value)>>0))*actor.compoundbitmap.cols
+                                actor.backgroundImage.setAnimationImageIndex( [
+                                        actor.__imageIndex+(23-((23*value)>>0))*actor.backgroundImage.getColumns()
                                     ] );
                             })
                     ).
@@ -81,9 +83,6 @@ function __CAAT__loadingScene(director) {
         }
     };
 
-    var start= new CAAT.ImageActor().create().setImage(director.getImage('start'));
-    start.setLocation( (director.width-start.width)/2, lading.y );
-    
     scene.loadedImage = function(count, total) {
         percent.setText( parseInt((count/total*100)>>0)+' %' );
         percent.calcTextSize(director);
@@ -126,9 +125,10 @@ function __end_loading(director) {
     delete director.__next_images;
     
     var gardenScene= new HN.GardenScene().create(director, 120);
-    var gameScene= new HN.GameScene().create(director, 8, 8);
+    var gameScene= new HN.GameScene().create(director, HN.GameModes.respawn );
     gardenScene.gameScene= gameScene;
-    gameScene.gardenScene= gardenScene;
+    //gameScene.gardenScene= gardenScene;
+    gameScene.addGameListener( gardenScene );
 
     director.easeIn(
             0,
@@ -143,7 +143,7 @@ function __end_loading(director) {
 function __Hypernumbers_init()   {
 
     var canvascontainer= document.getElementById('game');
-    var director = new CAAT.Director().initializeGL(700,500).setClear(false);
+    var director = new CAAT.Director().initialize(700,500).setClear(false);
     HN.director= director;
     canvascontainer.appendChild( director.canvas );
 
@@ -168,9 +168,10 @@ function __Hypernumbers_init()   {
 
                 new CAAT.ImagePreloader().loadImages(
                     [
-                        {id:'smoke',            url:'res/img/humo.png'},                            
+                        {id:'smoke',            url:'res/img/humo.png'},
                         {id:'stars',            url:'res/img/stars.png'},
                         {id:'bricks',           url:'res/img/nums.png'},
+                        {id:'bricks-bg',        url:'res/img/nums-bg.png'},
                         {id:'buttons',          url:'res/img/botones.png'},
                         {id:'numbers',          url:'res/img/numbers.png'},
                         {id:'numberssmall',     url:'res/img/numbers_s.png'},
@@ -202,7 +203,14 @@ function __Hypernumbers_init()   {
                         {id:'msg6',             url:'res/img/2.png'},
                         {id:'msg7',             url:'res/img/1.png'},
                         {id:'info_howto',       url:'res/img/info.png'},
-                        {id:'sound',            url:'res/img/sound.png'}
+                        {id:'sound',            url:'res/img/sound.png'},
+                        {id:'mode-respawn',     url:'res/img/respawn.png'},
+                        {id:'mode-progressive', url:'res/img/progresive.png'},
+                        {id:'mode-classic',     url:'res/img/normal_mode.png'},
+                        {id:'mode-text',        url:'res/img/textos.png'},
+                        {id:'rclock-bg',        url:'res/img/rclock_bg.png'},
+                        {id:'rclock-tick',      url:'res/img/rclock_tick.png'},
+                        {id:'rclock-arrow',     url:'res/img/rclock_arrow.png'}
                     ],
 
                     function( counter, images ) {
@@ -210,6 +218,8 @@ function __Hypernumbers_init()   {
                         if ( counter==images.length ) {
                             images[0].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(0,1,32,images[0].image);
                             images[1].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,24,images[1].image);
+                            images[41].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,16,images[41].image);
+
                             director.__next_images= images;
                             
                             director.
@@ -232,7 +242,7 @@ function __Hypernumbers_init()   {
         }
     );
 
-    director.loop(60);
+    CAAT.loop(60);
 }
 
 function __enterCSS( domElement, x0,y0, x1,y1, scene ) {

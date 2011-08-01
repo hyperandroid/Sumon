@@ -147,7 +147,8 @@
 		return this;
 	};
 
-	extend( HN.Garden, CAAT.Actor, {
+
+    HN.Garden.prototype= {
 		grass:			null,
 		ambient:		1,
 		stars:			null,
@@ -330,7 +331,9 @@
             this.ambient= (this.ambients[i1]-this.ambients[i0])*time/last + this.ambients[i0];
         }
 
-	});
+	};
+
+    extend( HN.Garden, CAAT.Actor);
 })();
 
 (function() {
@@ -340,37 +343,27 @@
         return this;
     };
 
-    extend( HN.Cloud, CAAT.ImageActor, {
+    HN.Cloud.prototype= {
         scene:      null,
 
-        setScene : function(scene) {
-            this.scene= scene;
-            return this;
-        },
-        animate : function( director, time ) {
-            if ( this.behaviorList.length==0 ) {
-                this.setupBehavior(director,true);
-            }
-            return HN.BackgroundImage.superclass.animate.call(this,director,time);
-        },
-        setupBehavior : function(director,bFirstTime) {
+        setupBehavior : function(director, bFirstTime) {
 
-            this.setImage( director.getImage('cloudb'+ ((4*Math.random())>>0) ) );
+            this.setBackgroundImage( director.getImage('cloudb'+ ((4*Math.random())>>0) ), true );
 
             var me= this;
             var ix0, ix1, iy0, iy1;
             var from= Math.random();
-            var dw= director.canvas.width;
-            var dh= director.canvas.height;
+            var dw= director.width;
+            var dh= director.height;
 
-            var ih= this.image.height;
-            var iw= this.image.width;
+            var ih= this.backgroundImage.height;
+            var iw= this.backgroundImage.width;
 
             var t= 40000 + 5000*Math.random()*4;            
 
             if ( bFirstTime ) {
-                ix0= this.x;
-                iy0= this.y;
+                ix0= (Math.random()*director.width)>>0;
+                iy0= (Math.random()*director.height)>>0;
                 t= (dw-ix0)/dw*t;
             } else {
                 ix0= -iw + -iw*2*Math.random();
@@ -383,24 +376,23 @@
             this.emptyBehaviorList();
             this.addBehavior(
                     new CAAT.PathBehavior().
-                            setFrameTime( this.scene.time, t ).
+                            setFrameTime( this.time, t ).
                             setPath(
-                                new CAAT.Path().
-                                        beginPath( ix0, iy0 ).
-                                        addLineTo( ix1, iy1 ).
-                                        endPath()
+                                new CAAT.Path().setLinear( ix0,iy0, ix1,iy1 )
                             ).
                             addListener( {
                                 behaviorExpired : function(behavior, time, actor) {
                                     me.setupBehavior(director,false);
-                                },
-                                behaviorApplied : function(actor,time,normalizedTime,value) {
-
                                 }
                             })
                     );
+
+            return this;
+
         }
-    });
+    };
+
+    extend( HN.Cloud, CAAT.Actor);
 
 })();
 
@@ -413,13 +405,13 @@
     HN.ScoreItem.prototype= {
         score:  0,
         level:  0,
-        difficulty: '',
+        mode:   '',
         date:   '',
 
-        initialize : function(score, level, difficulty) {
+        initialize : function(score, level, mode) {
             this.score= score;
             this.level= level;
-            this.difficulty= difficulty==0 ? 'Easy' : 'Hard';
+            this.mode= mode;
 
             var d= new Date();
             this.date= ''+d.getFullYear()+'/'+this.pad(1+d.getMonth())+'/'+this.pad(d.getDate());
@@ -451,7 +443,7 @@
                 for( i=0; i<rows; i++ ) {
                     document.getElementById( i+'_1' ).innerHTML= this.scores[i].score;
                     document.getElementById( i+'_2' ).innerHTML= this.scores[i].level;
-                    document.getElementById( i+'_3' ).innerHTML= this.scores[i].difficulty;
+                    document.getElementById( i+'_3' ).innerHTML= this.scores[i].mode;
                     document.getElementById( i+'_4' ).innerHTML= this.scores[i].date;
                 }
             } else {
@@ -466,7 +458,7 @@
 
             return this;
         },
-        addScore : function( score, level, difficulty ) {
+        addScore : function( score, level, mode ) {
             // quitar filas hasta que entre una.
             while ( this.scores.length>=this.maxScoreRows ) {
                 this.scores.splice( this.scores.length-1, 1 );
@@ -479,16 +471,16 @@
                     break;
                 }
             }
-            this.scores.splice( i, 0, new HN.ScoreItem().initialize(score, level, difficulty ) );
+            this.scores.splice( i, 0, new HN.ScoreItem().initialize(score, level, mode ) );
 
-            CAAT.modules.LocalStorage.prototype.save('sumon_scores', this.scores);
+            CAAT.modules.LocalStorage.prototype.save('sumon_scores_1', this.scores);
 
             this.initialize();
 
             return this;
         },
         setData : function() {
-            this.scores= CAAT.modules.LocalStorage.prototype.load('sumon_scores');
+            this.scores= CAAT.modules.LocalStorage.prototype.load('sumon_scores_1');
             return this;
         }
     };
@@ -512,6 +504,65 @@
         music:          null,
         sound:          null,
 
+        createModeButtons : function() {
+
+            var me= this;
+
+            var m= [];
+            m.push(new CAAT.CompoundImage().initialize( me.director.getImage('mode-classic'), 1,3 ));
+            m.push(new CAAT.CompoundImage().initialize( me.director.getImage('mode-progressive'), 1,3 ));
+            m.push(new CAAT.CompoundImage().initialize( me.director.getImage('mode-respawn'), 1,3 ));
+
+            var modes= [ HN.GameModes.classic, HN.GameModes.progressive, HN.GameModes.respawn ];
+
+            var i,w= 0;
+            for( i=0; i<m.length; i++ ) {
+                w= Math.max(w,m[i].singleWidth);
+            }
+
+            var margin= 20;
+            w+=margin;
+            var dw= (me.director.width-w*m.length)/2 + margin/2;
+
+            function createb(index) {
+                var text= new CAAT.SpriteImage().
+                        initialize( me.director.getImage('mode-text'), 1,3 ).
+                        setAnimationImageIndex([index]);
+
+                var c= new CAAT.ActorContainer().create().setBounds(
+                        dw + w*index, 230,
+                        Math.max( m[index].singleWidth, text.singleWidth),
+                        m[index].singleWidth+text.singleHeight );
+
+                var b= new CAAT.Button().
+                        initialize(m[index], 0,1,2,0, function() {
+                            me.director.audioPlay('11');
+                            me.startGame(me.director,0,modes[index]);
+                        }).
+                        setBounds(
+                            (c.width-m[index].singleWidth)/2,
+                            0,
+                            m[index].singleWidth,
+                            m[index].singleHeight );
+
+                var t = new CAAT.Actor().
+                        setBackgroundImage(text).
+                        setBounds(
+                            (c.width - text.singleWidth) / 2,
+                            b.height,
+                            text.singleWidth,
+                            text.singleHeight);
+
+                c.addChild(b);
+                c.addChild(t);
+
+                return c;
+            }
+
+            this.directorScene.addChild( createb(0) );
+            this.directorScene.addChild( createb(1) );
+            this.directorScene.addChild( createb(2) );
+        },
         /**
          * Creates the main game Scene.
          * @param director a CAAT.Director instance.
@@ -531,20 +582,19 @@
                 me.prepareSound();
             };
 
+            var imgb= director.getImage('background');
             this.directorScene.addChild(
-                    new CAAT.ImageActor().
-                            create().
+                    new CAAT.Actor().
                             setBounds(0,0,dw,dh).
-                            setImage( director.getImage('background') ).
-                            setOffsetY( -director.getImage('background').height+dh ).
+                            setBackgroundImage(imgb).
+                            setBackgroundImageOffset( 0, -imgb.height+dh ).
                             setClip(true)
                     );
 
             ///////////// some clouds
             for( i=0; i<5; i++ ) {
                 var cl= new HN.Cloud().
-                        create().
-                        setScene( this.directorScene ).
+                        setupBehavior(director,true).
                         setLocation( dw/5*i + (dw/5)*Math.random() , dh/3*Math.random() );
                 this.directorScene.addChild(cl);
             }
@@ -552,10 +602,8 @@
             var ovnitrail= new CAAT.ActorContainer().create().setBounds(0,0,dw,dh);
             this.directorScene.addChild(ovnitrail);
 
-            var ovniImage= new CAAT.CompoundImage().initialize( director.getImage('ovni'), 1, 2 );
-            var starsImage= new CAAT.CompoundImage().initialize(director.getImage('stars'), 1,6 );
-
-            var smokeImage= new CAAT.CompoundImage().initialize(director.getImage('smoke'), 32,1 );
+            var ovniImage= new CAAT.SpriteImage().initialize( director.getImage('ovni'), 1, 2 );
+            var smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 32,1 );
 
             var TT=600;
             if ( director.glEnabled ) {
@@ -565,11 +613,9 @@
             for( var i=0; i<2; i++ ) {
                 var ox= Math.random()*dw;
                 var oy= Math.random()*dh;
-                var ovni= new CAAT.SpriteActor().
-                        create().
-                        setSpriteImage( ovniImage ).
+                var ovni= new CAAT.Actor().
+                        setBackgroundImage( ovniImage.getRef().setAnimationImageIndex( [1-i] ), true ).
                         setLocation( ox, oy ).
-                        setAnimationImageIndex( [1-i] ).
                         enableEvents(false).
                         addBehavior(
                             new CAAT.PathBehavior().
@@ -603,10 +649,10 @@
                                                     var offset0= Math.random()*10*(Math.random()<.5?1:-1);
                                                     var offset1= Math.random()*10*(Math.random()<.5?1:-1);
                                                     ovnitrail.addChildDelayed(
-                                                        new CAAT.SpriteActor().
-                                                            create().
-                                                            setSpriteImage(img).
-                                                                setAnimationImageIndex( [0] ).
+                                                        new CAAT.Actor().
+                                                            setBackgroundImage(
+                                                                smokeImage.getRef().setAnimationImageIndex([0]),
+                                                                true).
                                                             setLocation(
                                                                 offset0+actor.x+actor.width/2-img.singleWidth/2,
                                                                 offset1+actor.y+actor.height/2-img.singleHeight/2).
@@ -617,7 +663,7 @@
                                                                 new CAAT.GenericBehavior().
                                                                         setFrameTime(time, this.smokeTime).
                                                                         setValues( 1, .1, null, null, function(value, target, actor ) {
-                                                                            actor.setAnimationImageIndex( [31-((value*31)>>0)] );
+                                                                            actor.backgroundImage.setAnimationImageIndex( [31-((value*31)>>0)] );
                                                                         }).
                                                                         setInterpolator(
                                                                             new CAAT.Interpolator().createExponentialInInterpolator(
@@ -670,33 +716,13 @@
             var numButtons= 4;
             var yGap=       10;
 
-            var EASY= 0;
-            var MEDIUM= 3;
-
-            // opciones del menu.
-            var easy= new CAAT.Button().
-                    create().
-                    initialize(this.buttonImage, EASY, EASY+1, EASY+2, EASY, function() {
-                        director.audioPlay('11');
-                        me.startGame(director,0);
-                    }).
-                    setBounds( (dw-2*bw-20)/2, 250, bw, bh );
-
-            var medium= new CAAT.Button().
-                    create().
-                    initialize(this.buttonImage, MEDIUM,MEDIUM+1,MEDIUM+2,MEDIUM,function() {
-                        director.audioPlay('11');
-                        me.startGame(director,1);
-                    }).
-                    setBounds( (dw-2*bw-20)/2 + 20 + bw, 250, bw, bh );
-
             var scores= new CAAT.Button().
                     create().
                     initialize( this.buttonImage, 18,19,20,18, function() {
                         director.audioPlay('11');
                         __enterCSS( document.getElementById('scores'), 700,0, 0,0, me.directorScene);
                     }).
-                    setBounds( (dw-bw)/2, 320, bw, bh );
+                    setBounds( dw-bw-10, dh-bh-10, bw, bh );
 
             var info_howto_ci= new CAAT.CompoundImage().initialize( director.getImage('info_howto'), 2, 3 );
             var ihw= info_howto_ci.singleWidth;
@@ -720,16 +746,15 @@
                 __enterCSS( document.getElementById('tutorial'), 700,0, 0,0, me.directorScene );
             };
 
-            this.directorScene.addChild(easy);
-            this.directorScene.addChild(medium);
+            this.createModeButtons();
+
             this.directorScene.addChild(info);
             this.directorScene.addChild(howto);
             this.directorScene.addChild(scores);
 
 
-            var logo= new CAAT.ImageActor().
-                    create().
-                    setImage(director.getImage('logo')).
+            var logo= new CAAT.Actor().
+                    setBackgroundImage(director.getImage('logo'), true).
                     setFrameTime( 1500, Number.MAX_VALUE );
             var xp= (dw - logo.width)/2;
             logo.addBehavior(
@@ -803,10 +828,11 @@
 
             }
         },
-        startGame : function(director,level) {
+        startGame : function(director,level,gameMode) {
             //director.switchToNextScene(1000,false,true);
             this.gameScene.setDifficulty(level);
-            this.gameScene.prepareSceneIn();
+
+            this.gameScene.prepareSceneIn(gameMode);
             director.easeInOut(
                     1,
                     CAAT.Scene.EASE_TRANSLATE,
@@ -818,6 +844,14 @@
                     false,
                     new CAAT.Interpolator().createExponentialInOutInterpolator(3,false),
                     new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) );
+        },
+        /**
+         * gameScene listener.
+         * @param type {string}
+         * @param data {object}
+         */
+        gameEvent : function( type, data ) {
+            this.scores.addScore( data.score, data.level, data.gameMode );
         }
     };
 })();

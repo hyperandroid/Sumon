@@ -1,31 +1,71 @@
 (function() {
     HN.BrickActor= function() {
         HN.BrickActor.superclass.constructor.call(this);
+
+        this.sb= new CAAT.ScaleBehavior().
+            setFrameTime(-1,0).
+            setValues(1,1);
+        this.addBehavior(this.sb);
+
+        this.rb= new CAAT.RotateBehavior().
+                setFrameTime(-1,0).
+                setValues(0,0)
+        this.addBehavior(this.rb);
+
+        this.pb= new CAAT.PathBehavior().
+                setFrameTime(-1,0)
+        this.addBehavior(this.pb);
+
+        this.ab= new CAAT.AlphaBehavior().
+                setFrameTime(-1,0).
+                setValues(1)
+        this.addBehavior(this.ab);
+
         return this;
     };
 
     HN.BrickActor.prototype= {
 
+        timeOver:       250,
+        timeSelection:  1000,
+        timeRespawn:    1500,
+        timeRearrange:  1500,
+        timeOverflow:   200,
+        timeCleared:    800,
+
         brick:          null,
-        compoundImage:  null,
+        isFalling:      false,
+
+        ab:             null,
+        sb:             null,
+        rb:             null,
+        pb:             null,
 
         /**
          *
-         * @param compoundImage
+         * @param numberImage
          * @param brick a HN.Brick instance.
          */
-        initialize : function( compoundImage, brick ) {
-            this.setSpriteImage( compoundImage );
+        initialize : function( numberImage, brick ) {
+
+            var tw= numberImage.singleWidth;
+            var th= numberImage.singleHeight;
+            this.setSize(tw,th);
+
+            this.setBackgroundImage(numberImage.getRef(),true);
+
             this.brick= brick;
 
             var me= this;
             brick.delegate =  function() {
-                me.spriteIndex=(me.brick.value-1) + 9*me.brick.color;
+                //me.spriteIndex=(me.brick.value-1) + 9*me.brick.color;
+                me.backgroundImage.spriteIndex= me.brick.value + numberImage.columns*me.brick.color;
             }
-            this.setSize(
-                    compoundImage.singleWidth,
-                    compoundImage.singleHeight);
 
+            return this;
+        },
+        setFalling : function(fall) {
+            this.falling= fall;
             return this;
         },
         mouseEnter : function(mouseEvent) {
@@ -34,16 +74,11 @@
                 return;
             }
 
-            this.emptyBehaviorList();
-
             this.parent.setZOrder( this, Number.MAX_VALUE );
 
-            var sb= new CAAT.ScaleBehavior().
-                    setFrameTime( mouseEvent.source.time, 250 ).
+            this.sb.setFrameTime( this.time, this.timeOver ).
                     setValues( 1, 1.2, 1, 1.2 ).
                     setPingPong();
-
-            this.addBehavior( sb );
 
             document.body.style.cursor = 'pointer';
         },
@@ -53,18 +88,357 @@
         mouseDown : function(mouseEvent) {
             this.brick.changeSelection();
         },
-        reset : function() {
-            this.resetTransform();
-            this.emptyBehaviorList();
-            this.alpha=1;
-        },
         toString : function() {
             return 'HN.Brick '+this.brick.row+','+this.brick.column;
-        }
+        },
+        /**
+         * brick deselected.
+         */
+        reset : function() {
+            //this.resetBehaviors();
+            this.resetAlpha().
+                    resetRotate().
+                    resetScale().
+                    resetTransform();
+            this.alpha=1;
+            return this;
+        },
+        resetBehavior : function(b,p1,p2) {
+            b.emptyListenerList();
+            b.setCycle(false);
+            b.setInterpolator( new CAAT.Interpolator().createLinearInterpolator() );
+            b.setFrameTime(-1,0);
+            if ( p1&& p2 ) {
+                b.setValues(p1,p2);
+            }
+        },
+        resetAlpha: function() {
+            this.resetBehavior(this.ab,1,1);
+            return this;
+        },
+        resetScale: function() {
+            this.resetBehavior(this.sb,1,1);
+            return this;
+        },
+        resetRotate: function() {
+            this.resetBehavior(this.rb,0,2*Math.PI);
+            return this;
+        },
+        resetPath : function() {
+            this.resetBehavior(this.pb);
+            return this;
+        },
+        resetBehaviors : function() {
+            this.resetAlpha();
+            this.resetScale();
+            this.resetRotate();
+            this.resetPath();
+            return this;
+        },
+        /**
+         * brick selected.
+         */
+        setSelected : function() {
 
+            this.sb.
+                    setValues( 1, .65, 1, .65 ).
+                    setFrameTime( this.time, this.timeSelection ).
+                    setPingPong().
+                    setCycle(true);
+            this.ab.
+                    setValues( .75, .25 ).
+                    setFrameTime( this.time, this.timeSelection ).
+                    setPingPong().
+                    setCycle(true);
+        },
+        /**
+         * game just started.
+         */
+        set: function() {
+            this.falling= false;
+            this.enableEvents(true);
+            this.reset();
+        },
+        /**
+         * actors entering game upon respawn timeout.
+         * @param x
+         * @param y
+         */
+        respawn: function(x,y) {
+            this.
+                reset().
+                enableEvents(true).
+                setFrameTime(this.time,Number.MAX_VALUE).
+                resetTransform().
+                setAlpha(1).
+                setFalling(true)
+                ;
+
+            this.pb.
+                emptyListenerList().
+                setFrameTime(this.time, this.timeRespawn+this.brick.row*50).
+                setPath( new CAAT.LinearPath().
+                    setInitialPosition(x, -this.height-((Math.random()*100)>>0) ).
+                    setFinalPosition(x, y)).
+                setInterpolator(
+                    new CAAT.Interpolator().createBounceOutInterpolator()
+                ).
+                addListener(
+                    {
+                        behaviorApplied : function() {
+                        },
+                        // re-enable events on actor after moving to rearrange position.
+                        behaviorExpired : function(behavior, time, actor) {
+                            actor.setFalling(false);
+                        }
+                    }
+                );
+
+        },
+        /**
+         * brick's been rearranged, i.e. moved position in context.
+         * @param x
+         * @param y
+         */
+        rearrange: function(x,y) {
+            this.setFalling(true);
+            this.pb.
+                emptyListenerList().
+                setFrameTime(this.time + this.brick.column*50, this.timeRearrange).
+                setPath( new CAAT.LinearPath().
+                    setInitialPosition(this.x, this.y).
+                    setFinalPosition(x, y)).
+                setInterpolator(
+                    new CAAT.Interpolator().createBounceOutInterpolator()
+                ).
+                addListener({
+                    behaviorApplied : function() {
+                    },
+                    // re-enable events on actor after moving to rearrange position.
+                    behaviorExpired : function(behavior, time, actor) {
+                        actor.setFalling(false);
+                    }
+                });
+        },
+        /**
+         * selection excedes suggested number.
+         * @param callback
+         */
+        selectionOverflow : function() {
+            // ladrillos que estn cayendo, no hacen el path de error.
+            if ( !this.falling ) {
+                var signo= Math.random()<.5 ? 1: -1;
+
+                this.pb.
+                        emptyListenerList().
+                        setFrameTime(this.time, this.timeOverflow).
+                        setPath(
+                            new CAAT.Path().
+                                    beginPath(this.x,this.y).
+                                    addLineTo(this.x + signo*(5+5*Math.random()),this.y).
+                                    addLineTo(this.x - signo*(5+5*Math.random()),this.y).
+                                    endPath() ).
+                        setPingPong();
+            }
+
+        },
+        /**
+         * this brick belongs to valid selection which sums up the suggested number.
+         * @param scene
+         * @param maxHeight
+         */
+        selectionCleared : function(scene, maxHeight) {
+
+            var signo= Math.random()<.5 ? 1 : -1;
+            var offset= 50+Math.random()*30;
+            var actor= this;
+
+            this.enableEvents(false).setScale( 1.5, 1.5 );
+
+            this.pb.
+                emptyListenerList().
+                setFrameTime( this.time, this.timeCleared ).
+                setPath(
+                    new CAAT.Path().
+                        beginPath( this.x, this.y ).
+                        addQuadricTo(
+                            this.x+offset*signo,   this.y-300,
+                            this.x+offset*signo*2, this.y+maxHeight+20).
+                        endPath() ).
+                    addListener( {
+                        behaviorExpired : function(behavior, time, actor) {
+                            actor.setExpired(true);
+                        },
+                        behaviorApplied : function(behavior, time, normalizedTime, actor, value) {
+
+                            for( var i=0; i<3; i++ ) {
+                                var offset0= Math.random()*10*(Math.random()<.5?1:-1);
+                                var offset1= Math.random()*10*(Math.random()<.5?1:-1);
+
+                                var iindex= (Math.random()*6)>>0;
+                                var actor2= scene.fallingStarCache[scene.fallingStarCacheIndex%scene.fallingStarCache.length];
+                                scene.fallingStarCacheIndex++;
+                                actor2.
+                                    setAnimationImageIndex( [iindex] ).
+                                    setFrameTime(actor.time, 400).
+                                    setLocation( offset0+actor.x+actor.width/2, offset1+actor.y);
+                                actor2.__parent.addChild(actor2);
+                                actor2.__sb.setFrameTime(actor.time,400);
+                            }
+                        }
+                    }).
+                    setInterpolator( new CAAT.Interpolator().createLinearInterpolator(false,false) );
+
+            this.rb.
+                setFrameTime( this.time, this.timeCleared ).
+                setValues( 0, (Math.PI + Math.random()*Math.PI*2)*(Math.random()<.5?1:-1) );
+
+            this.ab.
+                setFrameTime( this.time, this.timeCleared ).
+                setValues( 1, .25 );
+        }
     };
 
-    extend( HN.BrickActor, CAAT.SpriteActor, null);
+    extend( HN.BrickActor, CAAT.Actor);
+})();
+
+(function() {
+    HN.RespawnClockActor= function() {
+        HN.RespawnClockActor.superclass.constructor.call(this);
+        this.ticks= [];
+        return this;
+    };
+
+    HN.RespawnClockActor.prototype= {
+
+        ticks:          null,
+        respawnTime:    10000,
+        scene:          null,
+        context:        null,
+        arrow:          null,
+        enabled:        false,
+
+        initialize: function(director, scene, context) {
+            this.scene= scene;
+            this.context= context;
+
+            var itick= director.getImage('rclock-tick');
+            var itickci= new CAAT.SpriteImage().initialize( itick, 16, 1 );
+
+            var ibg= director.getImage('rclock-bg');
+            var iarrow= director.getImage('rclock-arrow');
+            var me= this;
+
+            this.setBounds(2,2,64,64);
+
+            var bg= new CAAT.Actor().
+                    setBackgroundImage( ibg, true ).
+                    setLocation((this.width-ibg.width)/2, (this.height-ibg.height)/2);
+            this.addChild(bg);
+
+            var NTicks= 12;
+            for( var i=0; i<NTicks; i++ ) {
+                var tick= new CAAT.Actor().
+                        setBackgroundImage( itickci.getRef(), true ).
+                        setLocation(
+                            this.width/2  + 29*Math.cos( -Math.PI/2 + i*2*Math.PI/NTicks ) - itick.width/2,
+                            this.height/2 + 29*Math.sin( -Math.PI/2 + i*2*Math.PI/NTicks ) - itick.width/2
+                            );
+
+                this.addChild(tick);
+
+                this.ticks.push(tick);
+
+                tick.addBehavior(
+                    new CAAT.ContainerBehavior().
+                        setOutOfFrameTime().
+                        addBehavior(
+                            new CAAT.GenericBehavior().
+                                setFrameTime( i*this.respawnTime/NTicks, 300 ).
+                                setValues( 1, 0, null, null, function(value, target, actor ) {
+                                    actor.backgroundImage.setAnimationImageIndex( [15-((value*15)>>0)] );
+                                })
+                        ).
+                        addBehavior(
+                            new CAAT.ScaleBehavior().
+                                setFrameTime( i*this.respawnTime/NTicks, 300 ).
+                                setValues( 1,3, 1,3 )
+                        )
+                );
+            }
+
+            var flecha= new CAAT.Actor().setBackgroundImage(iarrow, true);
+            flecha.setLocation(
+                    (this.width-flecha.width)/2, this.height/2-23-.5
+                    );
+            this.addChild(flecha);
+
+            flecha.addBehavior(
+                    new CAAT.RotateBehavior().
+                            setOutOfFrameTime().
+                            setValues(0, 2*Math.PI).
+                            setAnchor(
+                                CAAT.Actor.prototype.ANCHOR_CUSTOM,
+                                flecha.width/2,
+                                23
+                            ).
+                            addListener({
+                                behaviorExpired : function(behavior, time, actor) {
+                                    me.resetTimer();
+                                    me.context.respawn();
+
+                                },
+                                behaviorApplied : function(behavior, time, normalizedTime, actor, value) {}
+                            })
+                    );
+
+            this.arrow= flecha;
+
+            return this;
+        },
+        resetTimer : function() {
+            var NTicks= this.ticks.length;
+            for( var i=0; i<NTicks; i++ ) {
+                this.ticks[i].resetTransform();
+                this.ticks[i].behaviorList[0].setFrameTime(this.scene.time, this.respawnTime);
+                this.ticks[i].behaviorList[0].behaviors[0].setFrameTime( i*this.respawnTime/NTicks, (this.respawnTime/NTicks)>>0 );
+                this.ticks[i].behaviorList[0].behaviors[1].setFrameTime( i*this.respawnTime/NTicks, (this.respawnTime/NTicks)>>0 );
+            }
+
+            this.arrow.behaviorList[0].setFrameTime(this.scene.time, this.respawnTime);
+        },
+        stopTimer : function() {
+            for( var i=0; i<this.ticks.length; i++ ) {
+                this.ticks[i].resetTransform();
+                this.ticks[i].behaviorList[0].setOutOfFrameTime();
+            }
+            this.arrow.behaviorList[0].setOutOfFrameTime();
+        },
+        contextEvent : function( event ) {
+            if ( !this.enabled ) {
+                return;
+            }
+
+            if ( event.event=='status') {
+                if ( event.params==HN.Context.prototype.ST_RUNNNING ) {
+                    this.resetTimer();
+                } else {
+                    this.stopTimer();
+                }
+            }
+        },
+        enable : function( enabled, respawnTime ) {
+            this.respawnTime= respawnTime;
+            this.enabled= enabled;
+            if ( enabled ) {
+                this.setFrameTime(0,Number.MAX_VALUE);
+            } else {
+                this.setOutOfFrameTime();
+            }
+        }
+    };
+
+    extend(HN.RespawnClockActor, CAAT.ActorContainer);
 })();
 
 (function() {
@@ -91,13 +465,10 @@
 
             for( var i=0; i<2; i++ ) {
                 var digit=
-                        new CAAT.SpriteActor().
-                                create().
-                                setSpriteImage(image).
-                                setAnimationImageIndex([-1]).
-                                setLocation(
-                                    0,
-                                    this.offsetY);
+                        new CAAT.Actor().
+                                setBackgroundImage(image.getRef(), true).
+                                setLocation(0,this.offsetY).
+                                setVisible(false);
                 
                 this.actors.push(digit);
                 this.addChild(digit);
@@ -124,17 +495,19 @@
                     for( i=0; i<snumber.length; i++ ) {
                         me.numbers[i]= parseInt(snumber.charAt(i));
                         this.actors[i].x= me.offsetX+i*(me.numbersImage.singleWidth-30);
+                        this.actors[i].setVisible(true);
                     }
 
                     if ( snumber.length==1 ) {
                         this.actors[1].setAnimationImageIndex([-1]);
+                        this.actors[1].setVisible(false);
                     }
 
 
                     if ( null==me.tmpnumbers ) {
 
                         for( i=0; i<snumber.length; i++ ) {
-                            this.actors[i].setAnimationImageIndex([this.numbers[i]]);
+                            this.actors[i].backgroundImage.setAnimationImageIndex([this.numbers[i]]);
                         }
 
                         this.emptyBehaviorList();
@@ -156,7 +529,7 @@
                                     behaviorExpired : function(behavior, time, actor) {
 
                                         for( i=0; i<snumber.length; i++ ) {
-                                            me.actors[i].setAnimationImageIndex([me.numbers[i]]);
+                                            me.actors[i].backgroundImage.setAnimationImageIndex([me.numbers[i]]);
                                         }
 
                                         me.emptyBehaviorList();
@@ -189,12 +562,8 @@
     HN.Chrono= function() {
         HN.Chrono.superclass.constructor.call(this);
 
-        this.actorventana= new CAAT.ImageActor().
-                create();
-        this.actorcrono= new CAAT.ImageActor().
-                create().
-                setLocation(14,18);
-
+        this.actorventana= new CAAT.Actor();
+        this.actorcrono= new CAAT.Actor().setLocation(14,18);
         this.addChild( this.actorcrono );
         this.addChild( this.actorventana );
 
@@ -206,18 +575,15 @@
         maxTime:    0,
         elapsedTime:0,
 
-
         actorventana:   null,
         actorcrono:     null,
 
         progressHole:  160,
 
         setImages : function( background, progress ){
-            this.actorventana.setImage(background);
-            this.actorcrono.setImage(progress);
+            this.actorventana.setBackgroundImage(background, true);
+            this.actorcrono.setBackgroundImage(progress, true);
             this.actorcrono.setClip( true );
-
-
             return this;
         },
         animate : function(director, time) {
@@ -243,7 +609,7 @@
         }
     };
 
-    extend( HN.Chrono, CAAT.ActorContainer, null);
+    extend( HN.Chrono, CAAT.ActorContainer);
 })();
 
 (function() {
@@ -263,14 +629,19 @@
         particles:              null,   // an array of random time to position on path.
         particlesPerSegment:    10,
         traversingPathTime:     3000,
+        context:                null,
 
         initialize : function() {
             this.coords= [];
             this.path=           null;
             this.pathMeasure=    null;
         },
-        setup : function( context, numberWidth, numberHeight ) {
+        setup : function( context, brickActors ) {
 
+            var i;
+
+            this.context= context;
+            this.brickActors= brickActors;
             this.coords= [];
 
             // no bricks, no path
@@ -278,31 +649,6 @@
                 this.initialize();
                 return;
             }
-
-            var i;
-
-            // get selected bricks screen coords.
-            for( i=0; i<context.selectedList.length; i++ )  {
-                var brick= context.selectedList[i];
-                this.coords.push(
-                    {
-                        x: brick.column*numberWidth + numberWidth/2,
-                        y: brick.row*numberHeight + numberHeight/2
-                    });
-            }
-
-            // setup a path for the coordinates.
-            this.path= new CAAT.Path();
-            this.path.beginPath( this.coords[0].x, this.coords[0].y );
-            for( i=1; i<context.selectedList.length; i++ ) {
-                this.path.addLineTo( this.coords[i].x, this.coords[i].y );
-            }
-            this.path.endPath();
-
-            this.pathMeasure= new CAAT.PathBehavior().
-                    setPath(this.path).
-                    setFrameTime(0, this.traversingPathTime*context.selectedList.length).
-                    setCycle(true);
 
             var expectedParticleCount= this.particlesPerSegment*(context.selectedList.length-1);
             if ( this.particles.length> expectedParticleCount ) {
@@ -313,8 +659,45 @@
                 }
             }
         },
+        setupPath : function() {
+            this.coords= [];
+
+            var numberWidth= this.brickActors[0][0].width;
+            var numberHeight= this.brickActors[0][0].height;
+            var offsetX= (this.context.columns-this.context.currentColumns)/2*numberWidth;
+            var offsetY= (this.context.rows-this.context.currentRows)/2*numberHeight;
+
+            // get selected bricks screen coords.
+            for( i=0; i<this.context.selectedList.length; i++ )  {
+                var brick= this.context.selectedList[i];
+                var brickActor= this.brickActors[brick.row][brick.column];
+                this.coords.push(
+                    {
+                        x: brickActor.x + brickActor.width/2,// + offsetX,
+                        y: brickActor.y + brickActor.height/2// + offsetY
+                    });
+            }
+
+            // setup a path for the coordinates.
+            this.path= new CAAT.Path();
+            this.path.beginPath( this.coords[0].x, this.coords[0].y );
+            for( i=1; i<this.context.selectedList.length; i++ ) {
+                this.path.addLineTo( this.coords[i].x, this.coords[i].y );
+            }
+            this.path.endPath();
+            this.pathMeasure= new CAAT.PathBehavior().
+                    setPath(this.path).
+                    setFrameTime(0, this.traversingPathTime*this.context.selectedList.length).
+                    setCycle(true);
+
+        },
         paint : function(director, time)    {
-            if ( this.coords.length>0 ) {
+            if ( null!=this.context && 0!=this.context.selectedList.length ) {
+
+                var i;
+                this.setupPath();
+
+
                 var ctx= director.ctx;
 
                 ctx.beginPath();
@@ -354,70 +737,61 @@
         },
         paintActorGL : function(director,time) {
 
-            if ( null==this.coords || 0==this.coords.length ) {
-                return;
+            if ( null!=this.context && 0!=this.context.selectedList.length ) {
+                this.setupPath();
+                if ( null==this.coords || 0==this.coords.length ) {
+                    return;
+                }
+
+
+                director.glFlush();
+
+                var i,
+                    pos=0,
+                    z= -director.canvas.height/2,
+                    point= new CAAT.Point(),
+                    m= this.worldModelViewMatrix;
+
+                for( i=0; i<this.coords.length; i++ ) {
+                    point.set(this.coords[i].x, this.coords[i].y,0);
+                    m.transformCoord(point);
+                    director.coords[pos++]= point.x;
+                    director.coords[pos++]= point.y;
+                    director.coords[pos++]= z;
+                }
+                for( i=2; i<=8; i+=2 ) {
+                    director.glTextureProgram.drawPolylines(director.coords, this.coords.length, 1,1,0,.5 - i/8/3, i);
+                }
+
+
+                //
+                // setup particles
+                //
+                pos=0;
+                for(i=0; i<this.particles.length; i++) {
+                    ppos= this.pathMeasure.positionOnTime( (this.particles[i]+time)*(1+(i%3)*.33) );
+                    point.set(ppos.x, ppos.y,0);
+                    m.transformCoord(point);
+                    director.coords[pos++]= point.x-3;
+                    director.coords[pos++]= point.y-3;
+                    director.coords[pos++]= z;
+
+                    director.coords[pos++]= point.x+3;
+                    director.coords[pos++]= point.y+3;
+                    director.coords[pos++]= z;
+                }
+                director.glTextureProgram.drawLines(director.coords, this.particles.length, 1,1,1,.3, 7);
+
             }
-
-            director.glFlush();
-
-            var i,
-                pos=0,
-                z= -director.canvas.height/2,
-                point= new CAAT.Point(),
-                m= this.worldModelViewMatrix;
-
-            for( i=0; i<this.coords.length; i++ ) {
-                point.set(this.coords[i].x, this.coords[i].y,0);
-                m.transformCoord(point);
-                director.coords[pos++]= point.x;
-                director.coords[pos++]= point.y;
-                director.coords[pos++]= z;
-            }
-            for( i=2; i<=8; i+=2 ) {
-                director.glTextureProgram.drawPolylines(director.coords, this.coords.length, 1,1,0,.5 - i/8/3, i);
-            }
-
-
-            //
-            // setup particles
-            //
-            pos=0;
-            for(i=0; i<this.particles.length; i++) {
-                ppos= this.pathMeasure.positionOnTime( (this.particles[i]+time)*(1+(i%3)*.33) );
-                point.set(ppos.x, ppos.y,0);
-                m.transformCoord(point);
-                director.coords[pos++]= point.x-3;
-                director.coords[pos++]= point.y-3;
-                director.coords[pos++]= z;
-
-                director.coords[pos++]= point.x+3;
-                director.coords[pos++]= point.y+3;
-                director.coords[pos++]= z;
-            }
-            director.glTextureProgram.drawLines(director.coords, this.particles.length, 1,1,1,.3, 7);
-
         }
     };
 
-    extend( HN.SelectionPath, CAAT.Actor, null);
+    extend( HN.SelectionPath, CAAT.Actor);
 })();
 
 (function() {
     HN.ScoreActor= function() {
         HN.ScoreActor.superclass.constructor.call(this);
-
-        this.interpolator= new CAAT.Interpolator().createExponentialInOutInterpolator(2,false);
-
-        for( var i=0; i<this.numDigits; i++ ) {
-            var actor= new CAAT.SpriteActor().
-                    create().
-                    setAnimationImageIndex([-1]).
-                    setBounds(0,0,0,0).
-                    setScale( this.FONT_CORRECTION, this.FONT_CORRECTION );
-
-            this.addChild(actor);
-        }
-
         return this;
     };
 
@@ -448,22 +822,25 @@
             this.currentScore=0;
             this.setScore();
         },
-        setBackground : function(background) {
-            this.setImage(background);
-            this.setSize( background.width, background.height );
-            this.setNumbersImage(this.font);
+        initialize : function(font, background) {
 
-            return this;
-        },
-        setNumbersImage : function(font) {
+            var i;
+
             this.font= font;
+            this.interpolator= new CAAT.Interpolator().createExponentialInOutInterpolator(2,false);
+            this.setBackgroundImage(background, true);
 
-            for( var i=0; i<this.numDigits; i++ ) {
-                this.childrenList[i].setSpriteImage(font).setLocation(
-                            (this.width-this.numDigits*this.font.singleWidth*this.FONT_CORRECTION)/2 + 
+            for( i=0; i<this.numDigits; i++ ) {
+                var actor= new CAAT.Actor().
+                        setScale( this.FONT_CORRECTION, this.FONT_CORRECTION ).
+                        setBackgroundImage(font.getRef(), true).
+                        setLocation(
+                            (this.width-this.numDigits*this.font.singleWidth*this.FONT_CORRECTION)/2 +
                                 (i*this.font.singleWidth*this.FONT_CORRECTION),
                             20
                         );
+
+                this.addChild(actor);
             }
 
             return this;
@@ -493,11 +870,8 @@
             var i=0;
             for( i=0; i<str.length; i++ ) {
                 this.numbers[i]= parseInt(str.charAt(i));
-
-                this.childrenList[i].setAnimationImageIndex([this.numbers[i]]);
-
+                this.childrenList[i].backgroundImage.setAnimationImageIndex([this.numbers[i]]);
             }
-
         },
         animate : function(director, time) {
             if ( time>= this.startTime && time<this.startTime+this.scoreDuration ) {
@@ -518,7 +892,7 @@
         }
     };
 
-    extend( HN.ScoreActor, CAAT.ImageActor, null);
+    extend( HN.ScoreActor, CAAT.ActorContainer);
 })();
 
 (function() {
@@ -553,11 +927,11 @@
                             this.timer.cancel();
                             this.timer= null;
 
-                            this.currentOffset= this.offsetY;
+                            this.currentOffset= this.backgroundImage.offsetY;
                             this.addBehavior(
                                     new CAAT.GenericBehavior().
                                             setFrameTime( this.scene.time, 1000 ).
-                                            setValues(this.currentOffset, this.initialOffset, this, 'offsetY').
+                                            setValues(this.currentOffset, this.initialOffset, this.backgroundImage, 'offsetY').
                                             setInterpolator( new CAAT.Interpolator().
                                                 createBounceOutInterpolator(false) )
                                     );
@@ -574,11 +948,11 @@
             var me= this;
             this.timer= this.scene.createTimer(
                 me.scene.time,
-                100,
+                200,
                 function timeout(sceneTime, time, timerTask) {
-                    me.offsetY+= me.altitude;
-                    if ( me.offsetY>0 ) {
-                        me.offsetY=0;
+                    me.backgroundImage.offsetY+= me.altitude;
+                    if ( me.backgroundImage.offsetY>0 ) {
+                        me.backgroundImage.offsetY=0;
                     }
                     timerTask.reset( me.scene.time );
                     me.context.incrementAltitude( me.altitudeMeterByIncrement );
@@ -587,16 +961,16 @@
                 null );
         },
         setInitialOffset : function( offset ) {
-            this.setOffsetY( offset );
+            this.backgroundImage.offsetY= offset;
             this.initialOffset= offset;
             return this;
         },
         caer : function(time) {
-            this.setOffsetY( this.currentOffset + (this.initialOffset-this.currentOffset)*time );
+            this.backgroundImage.offsetY= this.currentOffset + (this.initialOffset-this.currentOffset)*time;
         }
     };
 
-    extend( HN.AnimatedBackground, CAAT.ImageActor, null);
+    extend( HN.AnimatedBackground, CAAT.Actor);
 
 })();
 
@@ -608,51 +982,25 @@
     };
 
     HN.BackgroundImage.prototype= {
-        altitude :  0,
-        scene:      null,
 
-        setScene : function(scene) {
-            this.scene= scene;
-            return this;
-        },
-        animate : function( director, time ) {
-            if ( this.behaviorList.length==0 ) {
-                this.setupBehavior(director, true);
-            }
-            return HN.BackgroundImage.superclass.animate.call(this,director,time);
-        },
-        contextEvent : function( event ) {
-            if ( event.source=='context' && event.event=='altitude') {
-                this.altitude= event.params;
-            }
-        },
         setupBehavior : function(director, bFirstTime) {
 
-            /*
-            La imagen de fondo es de 2560, y el alto del canvas de 500.
-            quedan 2060 pixels de altura. por pixels, se suben 20 metros.,
-            por lo que la altura de la imagen es de 2060*20= 41200 metros.
+            var is_bg= Math.random()<.4;
 
-            ahora, todos los graficos van a ser nubes.
-             */
-
-            var is_bg= Math.random()<.3 || this.only_bg;
-
-            this.setImage( director.getImage('cloud'+(is_bg ? 'b' : '')+ ((4*Math.random())>>0) ) );
+            this.setBackgroundImage( director.getImage('cloud'+(is_bg ? 'b' : '')+ ((4*Math.random())>>0) ), true );
             
             var t= (30000*(is_bg?1.5:1) + 5000*Math.random()*2);
             var me= this;
             var ix0, ix1, iy0, iy1;
-            var from= Math.random();
-            var dw= director.canvas.width;
-            var dh= director.canvas.height-200;
+            var dw= director.width;
+            var dh= director.height-200;
 
-            var ih= this.image.height;
-            var iw= this.image.width;
+            var ih= this.backgroundImage.height;
+            var iw= this.backgroundImage.width;
 
             if ( bFirstTime ) {
-                ix0= this.x;
-                iy0= this.y;
+                ix0= dw*Math.random();
+                iy0= dh*Math.random();
                 t= (dw-ix0)/dw*t;
             } else {
                 ix0= -iw-iw*Math.random();
@@ -664,12 +1012,9 @@
             this.emptyBehaviorList();
             this.addBehavior(
                     new CAAT.PathBehavior().
-                            setFrameTime( this.scene.time, t ).
+                            setFrameTime( this.time, t ).
                             setPath(
-                                new CAAT.Path().
-                                        beginPath( ix0, iy0 ).
-                                        addLineTo( ix1, iy1 ).
-                                        endPath()
+                                new CAAT.Path().setLinear(ix0, iy0, ix1, iy1)
                             ).
                             addListener( {
                                 behaviorExpired : function(behavior, time, actor) {
@@ -680,24 +1025,17 @@
                                 }
                             })
                     );
+
+            return this;
         }
     };
 
-    extend( HN.BackgroundImage, CAAT.ImageActor, null);
+    extend( HN.BackgroundImage, CAAT.Actor);
 })();
 
 (function() {
     HN.LevelActor= function() {
         HN.LevelActor.superclass.constructor.call(this);
-
-        for( var i=0; i<2; i++ ) {
-            var digit= new CAAT.SpriteActor().
-                    create().
-                    setAnimationImageIndex([-1]).
-                    setBounds(0,0,0,0);
-
-            this.addChild(digit);
-        }
         return this;
     };
 
@@ -706,17 +1044,19 @@
         level:      0,
         numbers:    null,
 
-        setFontImage : function(font) {
+        initialize : function(font, background) {
             this.font= font;
 
-            for( var i=0; i<this.childrenList.length; i++ ) {
-                this.childrenList[i].setSpriteImage(font);
+
+            for( var i=0; i<2; i++ ) {
+                var digit= new CAAT.Actor().
+                        setBackgroundImage(font, true).
+                        setVisible(false);
+
+                this.addChild(digit);
             }
-            return this;
-        },
-        setBackground : function(background) {
-            this.setImage(background);
-            this.setSize( background.width, background.height );
+
+            this.setBackgroundImage(background, true);
 
             return this;
         },
@@ -731,15 +1071,15 @@
 
                     for( i=0; i<snumber.length; i++ ) {
                         this.numbers[i]= parseInt(snumber.charAt(i));
-                        this.childrenList[i].setAnimationImageIndex([this.numbers[i]]);
+                        this.childrenList[i].backgroundImage.setAnimationImageIndex([this.numbers[i]]);
                         this.childrenList[i].setLocation(
                                 (this.width - this.numbers.length*(this.font.singleWidth))/2,
-                                (this.height - this.font.singleHeight)/2
-                                );
+                                20 ).
+                                setVisible(true);
                     }
 
                     for( ;i<this.childrenList.length; i++ ) {
-                        this.childrenList[i].setAnimationImageIndex([-1]);
+                        this.childrenList[i].setVisible(false);
                     }
 
                 }
@@ -747,15 +1087,15 @@
         }
     };
 
-    extend(HN.LevelActor, CAAT.ImageActor, null);
+    extend(HN.LevelActor, CAAT.ActorContainer);
 })();
 
 (function() {
     HN.MultiplierActor= function() {
         HN.MultiplierActor.superclass.constructor.call(this);
 
-        this.actorx=    new CAAT.ImageActor().create().setVisible(false);
-        this.actornum=  new CAAT.SpriteActor().create();
+        this.actorx=    new CAAT.Actor().setVisible(false);
+        this.actornum=  new CAAT.Actor();
 
         this.addChild(this.actorx);
         this.addChild(this.actornum);
@@ -772,8 +1112,8 @@
 
         setImages : function( font, x ) {
 
-            this.actorx.setImage(x);
-            this.actornum.setSpriteImage(font).setAnimationImageIndex([-1]);
+            this.actorx.setBackgroundImage(x,true);
+            this.actornum.setBackgroundImage(font,true).setVisible(false);
 
             var xoffset= (this.width-x.width-font.singleWidth)/2 + 10;
 
@@ -784,7 +1124,7 @@
         },
         hideMultiplier : function() {
             this.multiplier=0;
-            this.actornum.setAnimationImageIndex([-1]);
+            this.actornum.setVisible(false);
             this.actorx.setVisible(false);
         },
         b1 : function(actor) {
@@ -822,7 +1162,7 @@
 
                     if ( event.params.multiplier>1 ) {
                         this.multiplier = event.params.multiplier;
-                        this.actornum.setAnimationImageIndex([this.multiplier]);
+                        this.actornum.setVisible(true).backgroundImage.setAnimationImageIndex([this.multiplier]);
                         this.actorx.setVisible(true);
 
                         this.emptyBehaviorList();
@@ -850,23 +1190,19 @@
         }
     };
 
-    extend( HN.MultiplierActor, CAAT.ActorContainer, null );
+    extend( HN.MultiplierActor, CAAT.ActorContainer);
 })();
 
 (function() {
     HN.GameScene= function() {
+        this.gameListener= [];
         return this;
     };
 
     HN.GameScene.prototype= {
 
-        imageBricksW:               9,
-        imageBricksH:               9,
-
         gameRows:                   15,
         gameColumns:                20,
-
-        gap:                        2,
 
         context:                    null,
         directorScene:              null,
@@ -876,7 +1212,15 @@
         brickActors:                null,
         particleContainer:          null,
 
-        bricksImage:                null,
+        selectionStarCache:         null,
+        selectionStarCacheIndex:    0,
+        fallingStarCache:           null,
+        fallingStarCacheIndex:      0,
+
+//        bricksImage:                null,
+//        bricksBGImage:              null,
+        brickWidth:                 0,
+        brickHeight:                0,
         buttonImage:                null,
         starsImage:                 null,
         numbersImage:               null,
@@ -887,6 +1231,7 @@
         timer:                      null,
         scrollTimer:                null,
         scoreActor:                 null,
+        respawnClock:               null,
 
         scoreActorEG:               null,
         levelActorEG:               null,        
@@ -904,42 +1249,88 @@
         music:                      null,
         sound:                      null,
 
+        gameListener:               null,
+
+        /**
+         * build an image of numbers over background.
+         * @param numbers
+         * @param bgnumbers
+         */
+        buildNumbersImage : function(director) {
+
+            var numbers= new CAAT.CompoundImage().initialize(
+                    director.getImage('bricks'),
+                    1,
+                    10 );
+            var bgnumbers= new CAAT.CompoundImage().initialize(
+                    director.getImage('bricks-bg'),
+                    1,
+                    9 );
+
+            director.deleteImage('bricks');
+            director.deleteImage('bricks-bg');
+
+            var nw= bgnumbers.singleWidth*10;
+            var nh= bgnumbers.singleHeight*bgnumbers.cols;
+
+            var cx= (bgnumbers.singleWidth-numbers.singleWidth)/2;
+            var cy= (bgnumbers.singleHeight-numbers.singleHeight)/2;
+
+            var img= document.createElement('canvas');
+            img.width= nw;
+            img.height= nh;
+            var ctx= img.getContext('2d');
+
+            for( var i=0; i<bgnumbers.cols; i++ ) {
+                for( var j=0; j<10; j++ ) {
+                    bgnumbers.paint( ctx, i, j*bgnumbers.singleWidth, i*bgnumbers.singleHeight );
+                    numbers.paint( ctx, j, j*bgnumbers.singleWidth+cx, i*bgnumbers.singleHeight+cy );
+                }
+            }
+
+            director.addImage('bricks', img);
+
+            return new CAAT.SpriteImage().initialize( img, bgnumbers.cols, numbers.cols);
+        },
         /**
          * Creates the main game Scene.
          * @param director a CAAT.Director instance.
          */
-        create : function(director, rows, columns) {
+        create : function(director, gameMode ) {
 
             var me= this;
             var i,j;
 
-            this.gameRows= rows;
-            this.gameColumns= columns;
-
             this.director= director;
 
-            this.bricksImage= new CAAT.CompoundImage().initialize(
-                    director.getImage('bricks'),
-                    this.imageBricksH,
-                    this.imageBricksW );
+
+            this.bricksImageAll= this.buildNumbersImage(director);
+
+            this.brickWidth=  this.bricksImageAll.singleWidth;
+            this.brickHeight= this.bricksImageAll.singleHeight;
+
             this.buttonImage= new CAAT.CompoundImage().initialize(
                     director.getImage('buttons'), 7,3 );
-            this.starsImage= new CAAT.CompoundImage().initialize(
+            this.starsImage= new CAAT.SpriteImage().initialize(
                     director.getImage('stars'), 24,6 );
-            this.numbersImage= new CAAT.CompoundImage().initialize(
+            this.numbersImage= new CAAT.SpriteImage().initialize(
                     director.getImage('numbers'), 1,10 );
-            this.numbersImageSmall= new CAAT.CompoundImage().initialize(
+            this.numbersImageSmall= new CAAT.SpriteImage().initialize(
                     director.getImage('numberssmall'), 1,10 );
 
-
             this.context= new HN.Context().
-                    create( this.gameRows, this.gameColumns, this.imageBricksH ).
+                    create( 8,8, 9 ).
                     addContextListener(this);
+
+            this.gameRows=      this.context.rows;
+            this.gameColumns=   this.context.columns;
+
 
             this.directorScene= director.createScene();
             this.directorScene.activated= function() {
                 // cada vez que la escena se prepare para empezar partida, inicializar el contexto.
-                me.context.initialize();
+                //me.context.initialize();
+                me.context.setGameMode(me.gameMode);
                 me.prepareSound();
             };
 
@@ -948,9 +1339,8 @@
 
             //////////////////////// animated background
             this.backgroundContainer= new HN.AnimatedBackground().
-                    create().
                     setBounds(0,0,dw,dh).
-                    setImage( director.getImage('background') ).
+                    setBackgroundImage( director.getImage('background') ).
                     setInitialOffset( -director.getImage('background').height+2*dh ).
                     setClip(true).
                     setData(this.directorScene, this.context);
@@ -963,10 +1353,7 @@
 
             ///////////// some clouds
             for( i=0; i<4; i++ ) {
-                var cl= new HN.BackgroundImage().
-                        create().
-                        setScene( this.directorScene ).
-                        setLocation( dw/4*i + (dw/4)*Math.random() , (dh-200)*Math.random() );
+                var cl= new HN.BackgroundImage().setupBehavior(director,true);
                 this.directorScene.addChild(cl);
             }
 
@@ -975,8 +1362,8 @@
             this.bricksContainer= new CAAT.ActorContainer().
                     create().
                     setSize(
-                        this.gameColumns*this.getBrickWidth(),
-                        this.gameRows*this.getBrickHeight() );
+                        this.gameColumns*this.brickWidth,
+                        this.gameRows*this.brickHeight );
 
             var bricksCY= (dh-this.bricksContainer.height)/2;
             var bricksCX= bricksCY;
@@ -988,8 +1375,7 @@
                 this.brickActors.push([]);
                 for( j=0; j<this.gameColumns; j++ ) {
                     var brick= new HN.BrickActor().
-                            create().
-                            initialize( this.bricksImage, this.context.getBrick(i,j) ).
+                            initialize( this.bricksImageAll, this.context.getBrick(i,j) ).
                             setLocation(-100,-100);
 
                     this.brickActors[i].push( brick );
@@ -1004,9 +1390,9 @@
                     create().
                     setBounds(
                         this.bricksContainer.x + this.bricksContainer.width + bricksCX,
-                        this.bricksContainer.x,
+                        20,
                         dw - bricksCX - (this.bricksContainer.x + this.bricksContainer.width) - bricksCX,
-                        this.bricksContainer.height );
+                        this.director.height-40 );
             this.directorScene.addChild( controls );
 
             /////////////////////// initialize button
@@ -1038,17 +1424,14 @@
 
             ///////////////////// Level indicator
 	        this.levelActor= new HN.LevelActor().
-                    create().
-	                setBounds( 0, 110, controls.width, 40 ).
-                    setFontImage( this.numbersImageSmall ).
-                    setBackground( director.getImage('level') );
+                    initialize( this.numbersImageSmall, director.getImage('level') ).
+	                setBounds( 0, 110, controls.width, 40 );
             this.context.addContextListener(this.levelActor);
 
 	        controls.addChild(this.levelActor);
 
             ///////////////////// Guess Number
             var guess= new HN.GuessNumberActor().
-                    create().
                     setBounds( 0, 10, controls.width, 70 ).
                     setNumbersImage( this.numbersImage );
             this.context.addContextListener(guess);
@@ -1056,7 +1439,6 @@
 
             ///////////////////// chronometer
             this.chronoActor= new HN.Chrono().
-                    create().
                     setBounds( 0, 230, controls.width, director.getImage('time').height ).
                     setImages( director.getImage('time'), director.getImage('timeprogress'));
             this.context.addContextListener(this.chronoActor);
@@ -1064,18 +1446,16 @@
 
             ///////////////////// score
             this.scoreActor= new HN.ScoreActor().
-                    create().
                     setBounds( 0, 180, controls.width, 30 ).
-                    setNumbersImage( this.numbersImageSmall ).
-                    setBackground( director.getImage('points') );
+                    initialize( this.numbersImageSmall, director.getImage('points') );
             controls.addChild( this.scoreActor );
             this.context.addContextListener(this.scoreActor);
 
             ////////////////////// Multiplier
             var multiplier= new HN.MultiplierActor().
-                    create().
                     setBounds(0, 300, controls.width, 80 ).
                     setImages( this.numbersImage, director.getImage('multiplier') );
+
             controls.addChild( multiplier );
             this.context.addContextListener(multiplier);
 
@@ -1084,7 +1464,8 @@
             // just to accelerate events delivery
             this.particleContainer= new CAAT.ActorContainer().
                     create().
-                    setBounds(0,0,dw,dh).
+                    //setBounds(0,0,dw,dh).
+                    setBounds( this.bricksContainer.x, this.bricksContainer.y, dw, dh ).
                     enableEvents(false);
             this.directorScene.addChild( this.particleContainer );
 
@@ -1095,8 +1476,8 @@
                     setBounds(
                         this.bricksContainer.x,
                         this.bricksContainer.y,
-                        this.gameColumns*this.getBrickWidth(),
-                        this.gameRows*this.getBrickHeight());
+                        this.gameColumns*this.brickWidth,
+                        this.gameRows*this.brickHeight);
             this.selectionPath.enableEvents(false);
             this.directorScene.addChild(this.selectionPath);
             this.context.addContextListener(this.selectionPath);
@@ -1104,13 +1485,86 @@
             ////////////////////////////////////////////////
             this.create_EndGame(director);
             this.create_EndLevel(director);
+
+            this.create_respawntimer(director);
+
+            this.create_cache();
             
             return this;
         },
+        create_cache: function() {
+            this.selectionStarCache= [];
+            this.fallingStarCache=   [];
+
+            var i,actor;
+
+            for( i=0; i<16*4; i++ ) {
+                actor= this.createSelectionStarCache();
+                actor.__parent= this.particleContainer;
+                this.selectionStarCache.push(actor);
+            }
+
+            for( i=0; i<384; i++ ) {
+                var actor= this.createCachedStar();
+                actor.__parent= this.particleContainer;
+                this.fallingStarCache.push(actor);
+            }
+        },
+        createCachedStar : function() {
+            var iindex= (Math.random()*6)>>0;
+            var actor= new CAAT.Actor();
+            actor.__imageIndex= iindex;
+            actor.
+                setBackgroundImage( this.starsImage.getRef().setAnimationImageIndex( [iindex] ) ).
+                enableEvents(false).
+                setDiscardable(true).
+                setOutOfFrameTime();
+
+            var sb=
+                new CAAT.GenericBehavior().
+                    setFrameTime(this.directorScene.time, 0).
+                    setValues( 1, 0, null, null, function(value,target,actor) {
+                        actor.setAnimationImageIndex( [
+                                actor.__imageIndex+(23-((23*value)>>0))*actor.backgroundImage.columns
+                            ] );
+                    });
+
+            actor.__sb= sb;
+            actor.addBehavior(sb);
+
+            return actor;
+        },
+        createSelectionStarCache : function() {
+            var actor= this.createCachedStar();
+
+            var trb=
+                new CAAT.PathBehavior().
+                    setFrameTime(this.directorScene.time,0).
+                    setPath(
+                        new CAAT.LinearPath().
+                            setInitialPosition(0,0).
+                            setFinalPosition(0,0)
+                    ).
+                    setInterpolator(
+                        new CAAT.Interpolator().createExponentialOutInterpolator(
+                            2,
+                            false)
+                    );
+            actor.__trb= trb;
+            actor.addBehavior(trb);
+
+            return actor;
+        },
+        create_respawntimer: function(director) {
+            var clock= new HN.RespawnClockActor().create().initialize(director, this.directorScene, this.context);
+            this.directorScene.addChild( clock );
+            this.context.addContextListener(clock);
+            this.respawnClock= clock;
+            this.respawnClock.setOutOfFrameTime();
+        },
         create_EndLevel : function( director ) {
-            this.endLevelActor= new CAAT.ImageActor().
-                    create().
-                    setImage( director.getImage('levelclear'));
+            this.endLevelActor= new CAAT.ActorContainer().
+                    setBackgroundImage( director.getImage('levelclear'), true);
 
             var me= this;
             var me_endLevel= this.endLevelActor;
@@ -1126,9 +1580,8 @@
                 });
             };
 
-            this.endLevelMessage= new CAAT.ImageActor().
-                    create().
-                    setImage( director.getImage('msg1') );
+            this.endLevelMessage= new CAAT.Actor().
+                    setBackgroundImage( director.getImage('msg1'), true );
 
             this.endLevelActor.addChild(continueButton);
             this.endLevelActor.addChild(this.endLevelMessage);
@@ -1138,9 +1591,8 @@
         create_EndGame : function(director, go_to_menu_callback ) {
             var me= this;
 
-            this.endGameActor= new CAAT.ImageActor().
-                    create().
-                    setImage( director.getImage('background_op') );
+            this.endGameActor= new CAAT.ActorContainer().
+                    setBackgroundImage( director.getImage('background_op'), true );
 
             var menu= new CAAT.Button().
                     create().
@@ -1177,7 +1629,7 @@
             restart.mouseClick= function(mouseEvent) {
                 director.audioPlay('11');
                 me.removeGameEvent( me.endGameActor, function() {
-                    me.prepareSceneIn();
+                    me.prepareSceneIn(me.context.gameMode);
                     me.context.initialize();
                 });
             };
@@ -1187,7 +1639,7 @@
                     create().
                     initialize( tweetImage, 0,1,2,0 );
             tweet.mouseClick = function(mouseEvent) {
-                var url = "http://twitter.com/home/?status=Wow! I just scored "+me.context.score+" points (level "+me.context.level+") in Sumon. Beat that! http://ludei.com/sumon";
+                var url = "http://twitter.com/home/?status=Wow! I just scored "+me.context.score+" points (mode "+me.context.gameMode.name+") in Sumon. Beat that! http://labs.hyperandroid.com/static/sumon/sumon.html";
                 window.open(url, 'blank', '');
             };
 
@@ -1208,14 +1660,12 @@
 
             //////////////////////// info de partida
             this.levelActorEG= new HN.LevelActor().
-                    create().
+                    initialize(this.numbersImageSmall, director.getImage('level')).
                     setBounds(
                         (this.endGameActor.width-this.levelActor.width)/2,
                         265,
                         this.levelActor.width,
-                        this.levelActor.height ).
-                    setFontImage( this.numbersImageSmall ).
-                    setBackground( director.getImage('level') );
+                        this.levelActor.height );
             this.endGameActor.addChild(this.levelActorEG);
             this.context.addContextListener(this.levelActorEG);
 
@@ -1227,8 +1677,7 @@
                         335,
                         this.scoreActor.width,
                         this.scoreActor.height ).
-                    setNumbersImage( this.numbersImageSmall ).
-                    setBackground( director.getImage('points') );
+                    initialize( this.numbersImageSmall, director.getImage('points') );
             this.endGameActor.addChild( this.scoreActorEG );
             this.context.addContextListener(this.scoreActorEG);
 
@@ -1236,11 +1685,11 @@
 
             this.directorScene.addChild(this.endGameActor);
         },
-        getBrickWidth : function() {
-            return this.bricksImage.singleWidth + this.gap;
-        },
-        getBrickHeight : function() {
-            return this.bricksImage.singleHeight + this.gap;
+        getBrickPosition : function(row,column) {
+            return {
+                x: (this.context.columns-this.context.currentColumns)/2*this.brickWidth+ column*this.brickWidth,
+                y: (this.context.rows-this.context.currentRows)/2*this.brickHeight+ row*this.brickHeight
+            };
         },
         uninitializeActors : function() {
             this.selectionPath.initialize();
@@ -1265,7 +1714,8 @@
 
                     var random= Math.random()*1000;
 
-                    var moveB= new CAAT.PathBehavior().
+                    brickActor.pb.
+                            emptyListenerList().
                             setFrameTime(this.directorScene.time, 1000+random).
                             setPath(
                                 new CAAT.CurvePath().
@@ -1279,15 +1729,17 @@
                                 ).
                             setInterpolator(
                                 new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) );
-                    var sb= new CAAT.ScaleBehavior().
+
+                    brickActor.sb.
+                            emptyListenerList().
                             setFrameTime(this.directorScene.time , 1000+random).
                             setValues( 1, .1, 1 , .1).
                             setInterpolator(
                                 new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) );
 
-                    brickActor.emptyBehaviorList().
-                        addBehavior(moveB).
-                        addBehavior(sb).
+                    brickActor.//.emptyBehaviorList().
+                        //addBehavior(moveB).
+                        //addBehavior(sb).
                         enableEvents(false).
                         setAlpha(1).
                         resetTransform();
@@ -1313,52 +1765,62 @@
             for( i=0; i<this.gameRows; i++ ) {
                 for( j=0; j<this.gameColumns; j++ ) {
                     var brickActor= this.brickActors[i][j];
-                    brickActor.
-                            setFrameTime( this.directorScene.time, Number.MAX_VALUE ).
-                            setAlpha(1).
-                            enableEvents(true).
-                            resetTransform();
 
-                    var random= Math.random()*1000;
+                    if ( brickActor.brick.removed ) {
+                        brickActor.setOutOfFrameTime();
+                    } else {
 
-                    var moveB= new CAAT.PathBehavior().
-                            setFrameTime(this.directorScene.time, 1000+random).
-                            setPath(
-                                new CAAT.CurvePath().
-                                        setCubic(
-                                            radius/2 + Math.cos(angle)*radius,
-                                            radius/2 + Math.sin(angle)*radius,
-                                            p0, p1, p2, p3,
-                                            j*this.bricksImage.singleWidth + j*2,
-                                            i*this.bricksImage.singleHeight + i*2)
-                                         ).
+                        brickActor.
+                                setFrameTime( this.directorScene.time, Number.MAX_VALUE ).
+                                setAlpha(1).
+                                enableEvents(true).
+                                reset();
 
-                            setInterpolator(
-                                new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) );
-                    var sb= new CAAT.ScaleBehavior().
-                            setFrameTime(this.directorScene.time , 1000+random).
-                            setValues( .1, 1, .1 , 1).
-                            setInterpolator(
-                                new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) );
+                        var random= (Math.random()*1000)>>0;
+
+                        var brickPosition= this.getBrickPosition(i,j);
+                        brickActor.pb.
+                                emptyListenerList().
+                                setPath(
+                                    new CAAT.CurvePath().
+                                            setCubic(
+                                                radius/2 + Math.cos(angle)*radius,
+                                                radius/2 + Math.sin(angle)*radius,
+                                                p0, p1, p2, p3,
+                                                brickPosition.x,
+                                                brickPosition.y)
+                                    ).
+                                setInterpolator(
+                                    new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) ).
+                                setFrameTime(this.directorScene.time, 1000+random);
+                        brickActor.sb.
+                                emptyListenerList().
+                                setValues( .1, 1, .1 , 1).
+                                setInterpolator(
+                                    new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) ).
+                                setFrameTime(this.directorScene.time , 1000+random);
 
 
-                    brickActor.emptyBehaviorList().
-                        addBehavior(moveB).
-                        addBehavior(sb).
-                        enableEvents(false);
+                        brickActor.
+//                                emptyBehaviorList().
+//                                addBehavior(moveB).
+//                                addBehavior(sb).
+                                enableEvents(false);
 
-                    
-                    var actorCount=0;
-                    moveB.addListener( {
-                        behaviorExpired : function( behavior, time, actor ) {
-                            actorCount++;
-                            if ( actorCount==me.gameRows*me.gameColumns ) {
-                                if ( me.context.status==me.context.ST_INITIALIZING ) {
-                                    me.context.setStatus( me.context.ST_RUNNNING );
+
+                        var actorCount=0;
+                        brickActor.pb.addListener( {
+                            behaviorExpired : function( behavior, time, actor ) {
+                                actorCount++;
+                                if ( actorCount==me.context.getLevelActiveBricks() ) {
+                                    brickActor.pb.emptyListenerList();
+                                    if ( me.context.status==me.context.ST_INITIALIZING ) {
+                                        me.context.setStatus( me.context.ST_RUNNNING );
+                                    }
                                 }
                             }
-                        }
-                    });
+                        });
+                    }
                 }
             }
 
@@ -1382,8 +1844,7 @@
                     } else if ( event.params==this.context.ST_RUNNNING) {
                         for( i=0; i<this.gameRows; i++ ) {
                             for( j=0; j<this.gameColumns; j++ ) {
-                                brickActor= this.brickActors[i][j];
-                                brickActor.enableEvents(true);
+                                brickActor= this.brickActors[i][j].set();
                             }
                         }
 
@@ -1408,35 +1869,67 @@
                         this.endGame();
                     }
                 }
-            } else if ( event.source=='brick' ) {
-                if ( event.event=='selection' ) {   // des/marcar un elemento.
+            } else if ( event.source==='brick' ) {
+                if ( event.event==='selection' ) {   // des/marcar un elemento.
                     this.director.audioPlay( event.params.selected ? '11' : 'deseleccionar' );
                     this.brickSelectionEvent(event);
-                } else if ( event.event=='selectionoverflow') {  // seleccion error.
+                } else if ( event.event==='selectionoverflow') {  // seleccion error.
                     this.director.audioPlay( 'sumamal' );
                     this.selectionOverflowEvent(event);
-                } else if ( event.event=='selection-cleared') {
+                } else if ( event.event==='selection-cleared') {
                     document.body.style.cursor = 'default';
                     this.director.audioPlay('12');
                     this.selectionClearedEvent(event);
+                } else if ( event.event==='rearranged' ) {
+                    this.rearrange( event );
+                } else if ( event.event==='respawn' ) {
+                    this.respawn(event);
                 }
 
                 // rebuild selection path
                 this.selectionPath.setup(
                         this.context,
-                        this.getBrickWidth(),
-                        this.getBrickHeight() );
+                        this.brickActors);
             }
         },
+        respawn : function(event) {
+            var respawnData= event.params;
+
+            for( var i=0; i<respawnData.length; i++ ) {
+                var row= respawnData[i].row;
+                var col= respawnData[i].column;
+
+                var brickPos= this.getBrickPosition(row,col);
+                this.brickActors[row][col].respawn(brickPos.x, brickPos.y);
+            }
+        },
+        rearrange : function(event) {
+
+            var fromRow= event.params.fromRow;
+            var toRow=   event.params.toRow;
+            var column=  event.params.column;
+
+            var tmp= this.brickActors[fromRow][column];
+            this.brickActors[fromRow][column]= this.brickActors[toRow][column];
+            this.brickActors[toRow][column]= tmp;
+
+            // el actor de posicion row, column, no tiene que ser el que esperabamos
+            // porque se ha reorganizado la cuadricula del modelo.
+            var brickActor= this.brickActors[toRow][column];
+            var brickPos= this.getBrickPosition(toRow,column);
+
+            brickActor.rearrange( brickPos.x, brickPos.y );
+        },
         brickSelectionEvent : function(event) {
+            var me= this;
             var brick= event.params;
             var brickActor= this.brickActors[brick.row][brick.column];
 
             if ( brick.selected ) {
 
                 // dibujar un grupo de estrellas desde el centro del ladrillo haciendo fade-out.
-                var x0= brickActor.x+brickActor.width/2+this.starsImage.singleWidth/2;
-                var y0= brickActor.y+brickActor.height/2+this.starsImage.singleHeight/2;
+                var x0= brickActor.x+brickActor.width/2-this.starsImage.singleWidth/2;
+                var y0= brickActor.y+brickActor.height/2-this.starsImage.singleHeight/2;
                 var R= Math.sqrt( brickActor.width*brickActor.width + brickActor.height*brickActor.height )/2;
                 var N= 16;
                 var i;
@@ -1448,70 +1941,17 @@
                     var y1= y0+ R*Math.sin( i*rad );
 
                     var iindex= (Math.random()*6)>>0;
-                    var actor= new CAAT.SpriteActor();
-                    actor.__imageIndex= iindex;
-                    actor.
-                        create().
-                        setSpriteImage( this.starsImage ).
-                        setAnimationImageIndex( [iindex] ).
-                        setDiscardable(true).
-                        enableEvents(false).
-                        setFrameTime(this.directorScene.time, T).
-                        addBehavior(/*
-                            new CAAT.AlphaBehavior().
-                                setFrameTime(this.directorScene.time, T).
-                                setValues( .6, .1 ).
-                                setInterpolator(
-                                    new CAAT.Interpolator().createExponentialOutInterpolator(
-                                        2,
-                                        false))
-                                        */
-                            new CAAT.GenericBehavior().
-                                setFrameTime(this.directorScene.time, T).
-                                setValues( 1, .1, null, null, function(value,target,actor) {
-                                    actor.setAnimationImageIndex( [
-                                            actor.__imageIndex+(23-((23*value)>>0))*actor.compoundbitmap.cols
-                                        ] );
-                                })/*.
-                                setInterpolator(
-                                    new CAAT.Interpolator().createExponentialOutInterpolator(
-                                        2,
-                                        false))*/
-                        ).
-                        addBehavior(
-                            new CAAT.PathBehavior().
-                                setFrameTime(this.directorScene.time,T).
-                                setPath( new CAAT.LinearPath().
-                                    setInitialPosition(x0,y0).
-                                    setFinalPosition(x1,y1)).
-                                    setInterpolator(
-                                        new CAAT.Interpolator().createExponentialOutInterpolator(
-                                            2,
-                                            false)
-                                    )
-                        );
-                    this.particleContainer.addChild(actor);
+                    var actor= this.selectionStarCache[this.selectionStarCacheIndex%this.selectionStarCache.length];
+                    this.selectionStarCacheIndex++;
+                    actor.setFrameTime(this.directorScene.time, T);
+                    actor.backgroundImage.setAnimationImageIndex( [iindex] );
+                    actor.__trb.setFrameTime(this.directorScene.time, T);
+                    actor.__trb.path.setInitialPosition(x0,y0).setFinalPosition(x1,y1);
+                    actor.__sb.setFrameTime(this.directorScene.time,T);
+                    actor.__parent.addChild(actor);
                 }
 
-                brickActor.emptyBehaviorList();
-
-                var sb= new CAAT.ScaleBehavior().
-                        setValues( 1, .65, 1, .65 ).
-                        setFrameTime( 0, 1000 ).
-                        setPingPong();
-                var ab= new CAAT.AlphaBehavior().
-                        setValues( .75, .25 ).
-                        setFrameTime( 0, 1000 ).
-                        setPingPong();
-
-                var cb= new CAAT.ContainerBehavior().
-                        setFrameTime( this.directorScene.time, 1000 ).
-                        setCycle(true).
-                        setPingPong().
-                        addBehavior( sb ).
-                        addBehavior( ab );
-
-                brickActor.addBehavior(cb);
+                brickActor.setSelected();
             }
             else {
                 brickActor.reset();
@@ -1539,10 +1979,12 @@
                 }
             }
 
+            var me= this;
+/*
             // define animation callback
             var count=0;
             var maxCount= activeActors.length;
-            var me= this;
+
             var callback= {
                 behaviorExpired : function(behavior, time, actor) {
                     count++;
@@ -1551,105 +1993,31 @@
                     }
                 }
             };
-
+*/
             // for each active actor, play a wrong-path.
             for( i=0; i<activeActors.length; i++ ) {
-                actor= activeActors[i];
-
-                var signo= Math.random()<.5 ? 1: -1;
-                actor.emptyBehaviorList().
-                    addBehavior(
-                        new CAAT.PathBehavior().
-                            setFrameTime(this.directorScene.time, 200).
-                            setPath(
-                                new CAAT.Path().
-                                    beginPath( actor.x, actor.y ).
-                                    addLineTo(
-                                        actor.x + signo*(5+5*Math.random()),
-                                        actor.y ).
-                                    addLineTo(
-                                        actor.x - signo*(10+5*Math.random()),
-                                        actor.y ).
-                                    closePath() ).
-                            addListener(callback).
-                            setPingPong() );
+                activeActors[i].selectionOverflow();
             }
+
+            var ttimer;
+            ttimer= this.directorScene.createTimer(
+                this.directorScene.time,
+                HN.BrickActor.prototype.timeOverflow+100,
+                function timeout(sceneTime, time, timerTask) {
+                    me.bricksContainer.enableEvents(true);
+                },
+                function tick(sceneTime, time, timerTask) {
+                });
+
         },
         selectionClearedEvent : function(event) {
             var selectedContextBricks= event.params;
-            var me= this;
-            var i,j;
+            var i;
 
             for( i=0; i<selectedContextBricks.length; i++ ) {
-
                 var actor= this.brickActors[ selectedContextBricks[i].row ][ selectedContextBricks[i].column ];
-
-                var signo= Math.random()<.5 ? 1 : -1;
-                var offset= 50+Math.random()*30;
-                var offsetY= 60+Math.random()*30;
-
                 actor.parent.setZOrder(actor,Number.MAX_VALUE);
-                actor.enableEvents(false).
-                    emptyBehaviorList().
-                    addBehavior(
-                        new CAAT.PathBehavior().
-                            setFrameTime( this.directorScene.time, 800 ).
-                            setPath(
-                                new CAAT.Path().
-                                    beginPath( actor.x, actor.y ).
-                                    addQuadricTo(
-                                        actor.x+offset*signo,   actor.y-300,
-                                        actor.x+offset*signo*2, actor.y+this.director.canvas.height+20).
-                                    endPath() ).
-                            addListener( {
-                                behaviorExpired : function(behavior, time, actor) {
-                                    actor.setExpired(true);
-                                },
-                                behaviorApplied : function(behavior, time, normalizedTime, actor, value) {
-
-                                    for( i=0; i<3; i++ ) {
-                                        var offset0= Math.random()*10*(Math.random()<.5?1:-1);
-                                        var offset1= Math.random()*10*(Math.random()<.5?1:-1);
-                                        var iindex= (Math.random()*6)>>0;
-                                        var actor2= new CAAT.SpriteActor();
-                                        actor2.__imageIndex= iindex;
-                                        actor2.
-                                                create().
-                                                setSpriteImage( me.starsImage ).
-                                                setLocation( offset0+actor.x+actor.width/2, offset1+actor.y).
-                                                setAnimationImageIndex( [iindex] ).
-                                                setDiscardable(true).
-                                                enableEvents(false).
-                                                setFrameTime(me.directorScene.time, 400).
-                                                addBehavior(/*
-                                                    new CAAT.AlphaBehavior().
-                                                        setFrameTime(me.directorScene.time, 300).
-                                                        setValues( .6, .1 ).
-                                                        setInterpolator(
-                                                            new CAAT.Interpolator().createExponentialInInterpolator(
-                                                                4,
-                                                                false))*/
-                                                    new CAAT.GenericBehavior().
-                                                            setFrameTime(me.directorScene.time, 400).
-                                                            setValues(1, .1, null, null, function(value, target, actor) {
-                                                            actor.setAnimationImageIndex([
-                                                                actor.__imageIndex + (23 - ((23 * value) >> 0)) * actor.compoundbitmap.cols
-                                                            ]);
-                                                        })
-                                                    );
-                                        me.particleContainer.addChild(actor2);
-                                    }
-                                }
-                            })
-                    ).addBehavior(
-                        new CAAT.RotateBehavior().
-                            setFrameTime( this.directorScene.time, 800 ).
-                            setValues( 0, (Math.PI + Math.random()*Math.PI*2)*(Math.random()<.5?1:-1) )
-                    ).addBehavior(
-                        new CAAT.AlphaBehavior().
-                            setFrameTime( this.directorScene.time, 800 ).
-                            setValues( 1, .25 )
-                    ).setScale( 1.5, 1.5 );
+                actor.selectionCleared(this, this.director.height);
             }
 
             this.timer.reset(this.directorScene.time);
@@ -1657,29 +2025,51 @@
         showLevelInfo : function() {
 
         },
-        prepareSceneIn : function() {
+        prepareSceneIn : function(gameMode) {
             // setup de actores
             var i,j;
 
-                this.bricksContainer.enableEvents(true);
+            this.gameMode= gameMode;
 
-                // fuera de pantalla
-                for( i=0; i<this.gameRows; i++ ) {
-                    for( j=0; j<this.gameColumns; j++ ) {
-                        this.brickActors[i][j].setLocation(-100,-100);
-                    }
+            if ( this.gameMode.respawn ) {
+                this.respawnClock.enable(true,this.gameMode.respawn_time);
+            } else {
+                this.respawnClock.enable(false,this.gameMode.respawn_time);
+            }
+            //this.context.initialize()
+
+            this.bricksContainer.enableEvents(true);
+
+            // fuera de pantalla
+            for( i=0; i<this.gameRows; i++ ) {
+                for( j=0; j<this.gameColumns; j++ ) {
+                    this.brickActors[i][j].setLocation(-100,-100);
                 }
+            }
 
-                this.selectionPath.initialize();
+            this.selectionPath.initialize();
 
-                this.chronoActor.tick(0,0);
-                this.scoreActor.reset();
+            this.chronoActor.tick(0,0);
+            this.scoreActor.reset();
 
-                this.endGameActor.setFrameTime(-1,0);
+            this.endGameActor.setFrameTime(-1,0);
         },
         endGame : function() {
-            this.gardenScene.scores.addScore( this.context.score, this.context.level, this.context.difficulty );
+            this.fireEvent( 'end-game', {
+                score: this.context.score,
+                level: this.context.level,
+                gameMode: this.context.gameMode.name
+            })
+//            this.gardenScene.scores.addScore( this.context.score, this.context.level, this.context.gameMode.name );
             this.showGameEvent( this.endGameActor );
+        },
+        addGameListener : function(gameListener) {
+            this.gameListener.push(gameListener);
+        },
+        fireEvent : function( type, data ) {
+            for( var i=0, l= this.gameListener.length; i<l; i++ ) {
+                this.gameListener[i].gameEvent(type, data);
+            }
         },
         setDifficulty : function(level) {
             this.context.difficulty=level;
@@ -1703,6 +2093,9 @@
                     me.chronoActor.tick(time, timerTask.duration);
                 });
 
+        },
+        setGameMode : function(gameMode) {
+            this.context.setGameMode(gameMode);
         },
         endLevel : function() {
             var level= this.context.level;
