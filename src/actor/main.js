@@ -118,6 +118,44 @@ function __CAAT__loadingScene(director) {
 
 function __end_loading(director) {
 
+    /**
+     * build an image of numbers over background.
+     * @param numbers
+     * @param bgnumbers
+     */
+    function buildNumbersImage(bricks,bricksbg) {
+
+        var numbers= new CAAT.CompoundImage().initialize(bricks,1,10 );
+        var bgnumbers= new CAAT.CompoundImage().initialize(bricksbg,1,9 );
+
+        var nw= bgnumbers.singleWidth*10;
+        var nh= bgnumbers.singleHeight*bgnumbers.cols;
+
+        var cx= (bgnumbers.singleWidth-numbers.singleWidth)/2;
+        var cy= (bgnumbers.singleHeight-numbers.singleHeight)/2;
+
+        var img= document.createElement('canvas');
+        img.width= nw;
+        img.height= nh;
+        var ctx= img.getContext('2d');
+
+        for( var i=0; i<bgnumbers.cols; i++ ) {
+            for( var j=0; j<10; j++ ) {
+                bgnumbers.paint( ctx, i, j*bgnumbers.singleWidth, i*bgnumbers.singleHeight );
+                numbers.paint( ctx, j, j*bgnumbers.singleWidth+cx, i*bgnumbers.singleHeight+cy );
+            }
+        }
+
+        return img;
+    }
+
+    director.__next_images.push( {
+        id:'bricks',
+        image: buildNumbersImage( director.__next_images[2].image, director.__next_images[3].image ) } );
+    director.__next_images.splice(2,1);
+    director.__next_images.splice(2,1);
+
+    
     director.emptyScenes();
 
     // BUGBUG artifact

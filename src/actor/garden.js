@@ -194,9 +194,8 @@
             }
         },*/
 		paint : function(director, time){
-
-
 			var ctx= director.ctx;
+            var i,j;
 
             if ( this.backgroundEnabled ) {
                 ctx.fillStyle= this.gradient;
@@ -217,7 +216,7 @@
                     ctx.strokeStyle=strc;
 
                     // first num_fireflyes coordinates are fireflyes themshelves.
-                    for( var j=this.num_fireflyes*2; j<this.stars.length; j+=2 )	{
+                    for( j=this.num_fireflyes*2; j<this.stars.length; j+=2 )	{
                         var inc=1;
                         if ( j%3==0 ) {
                             inc=1.5;
@@ -237,7 +236,7 @@
 
 			// draw fireflyes
 
-	    	for(var i=0; i<this.num_fireflyes*2; i+=2) {
+	    	for( i=0; i<this.num_fireflyes*2; i+=2) {
                 ctx.fillStyle= this.fireflyColor[i%3];
 		    	var angle= Math.PI*2*Math.sin(time*3E-4) + i*Math.PI/50;
 		    	var radius= this.firefly_radius*Math.cos(time*3E-4);
@@ -264,7 +263,7 @@
                 }
 	    	}
 
-			for( var i=0; i<this.grass.length; i++ ) {
+			for( i=0; i<this.grass.length; i++ ) {
 				this.grass[i].paint(ctx,time,this.ambient);
 			}
 
@@ -441,10 +440,10 @@
             if ( null!=this.scores ) {
                 rows= this.scores.length;
                 for( i=0; i<rows; i++ ) {
-                    document.getElementById( i+'_1' ).innerHTML= this.scores[i].score;
-                    document.getElementById( i+'_2' ).innerHTML= this.scores[i].level;
-                    document.getElementById( i+'_3' ).innerHTML= this.scores[i].mode;
-                    document.getElementById( i+'_4' ).innerHTML= this.scores[i].date;
+                    this.setDOM( i+'_1', this.scores[i].score);
+                    this.setDOM( i+'_2', this.scores[i].level);
+                    this.setDOM( i+'_3', this.scores[i].mode);
+                    this.setDOM( i+'_4', this.scores[i].date);
                 }
             } else {
                 this.scores= [];
@@ -452,10 +451,17 @@
 
             for( i=rows; i<10; i++ ) {
                 for( var j=1; j<=4; j++ ) {
-                    document.getElementById( i+'_'+j ).innerHTML='';
+                    this.setDOM( i+'_'+j, '');
                 }
             }
 
+            return this;
+        },
+        setDOM : function( elem, value ) {
+            var dom= document.getElementById(elem);
+            if ( null!=dom ) {
+                dom.innerHTML= value;
+            }
             return this;
         },
         addScore : function( score, level, mode ) {
@@ -689,13 +695,15 @@
                 this.directorScene.addChild(ovni);
             }
 
-            // fondo. jardin.
-            this.directorScene.addChild(
-                    new HN.Garden().
-                            create().
-                            setBounds(0,0,dw,dh).
-                            initialize( director.ctx, gardenSize, dh*.3 )
-                    );
+            if ( gardenSize>0 ) {
+                // fondo. jardin.
+                this.directorScene.addChild(
+                        new HN.Garden().
+                                create().
+                                setBounds(0,0,dw,dh).
+                                initialize( director.ctx, gardenSize, dh*.3 )
+                        );
+            }
 
             var madeWith= new CAAT.Button().
                     create().
@@ -710,7 +718,6 @@
             this.buttonImage= new CAAT.CompoundImage().initialize(
                     director.getImage('buttons'), 7,3 );
 
-            var me=         this;
             var bw=         this.buttonImage.singleWidth;
             var bh=         this.buttonImage.singleHeight;
             var numButtons= 4;

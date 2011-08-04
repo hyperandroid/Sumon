@@ -591,7 +591,8 @@
                     this.maxTime!=0 ?
                             this.elapsedTime/this.maxTime * this.progressHole :
                             0;
-            this.actorcrono.width= this.progressHole-size;
+            // make sure this actor is marked as dirty by calling setSize and not .width=new_size.
+            this.actorcrono.setSize( this.progressHole-size, this.actorcrono.height );
 
             return HN.Chrono.superclass.animate.call(this,director,time);
         },
@@ -1252,47 +1253,6 @@
         gameListener:               null,
 
         /**
-         * build an image of numbers over background.
-         * @param numbers
-         * @param bgnumbers
-         */
-        buildNumbersImage : function(director) {
-
-            var numbers= new CAAT.CompoundImage().initialize(
-                    director.getImage('bricks'),
-                    1,
-                    10 );
-            var bgnumbers= new CAAT.CompoundImage().initialize(
-                    director.getImage('bricks-bg'),
-                    1,
-                    9 );
-
-            director.deleteImage('bricks');
-            director.deleteImage('bricks-bg');
-
-            var nw= bgnumbers.singleWidth*10;
-            var nh= bgnumbers.singleHeight*bgnumbers.cols;
-
-            var cx= (bgnumbers.singleWidth-numbers.singleWidth)/2;
-            var cy= (bgnumbers.singleHeight-numbers.singleHeight)/2;
-
-            var img= document.createElement('canvas');
-            img.width= nw;
-            img.height= nh;
-            var ctx= img.getContext('2d');
-
-            for( var i=0; i<bgnumbers.cols; i++ ) {
-                for( var j=0; j<10; j++ ) {
-                    bgnumbers.paint( ctx, i, j*bgnumbers.singleWidth, i*bgnumbers.singleHeight );
-                    numbers.paint( ctx, j, j*bgnumbers.singleWidth+cx, i*bgnumbers.singleHeight+cy );
-                }
-            }
-
-            director.addImage('bricks', img);
-
-            return new CAAT.SpriteImage().initialize( img, bgnumbers.cols, numbers.cols);
-        },
-        /**
          * Creates the main game Scene.
          * @param director a CAAT.Director instance.
          */
@@ -1304,7 +1264,8 @@
             this.director= director;
 
 
-            this.bricksImageAll= this.buildNumbersImage(director);
+            this.bricksImageAll= new CAAT.SpriteImage().initialize(
+                    director.getImage('bricks'), 9, 10 );
 
             this.brickWidth=  this.bricksImageAll.singleWidth;
             this.brickHeight= this.bricksImageAll.singleHeight;
@@ -1424,8 +1385,9 @@
 
             ///////////////////// Level indicator
 	        this.levelActor= new HN.LevelActor().
-                    initialize( this.numbersImageSmall, director.getImage('level') ).
-	                setBounds( 0, 110, controls.width, 40 );
+                    initialize( this.numbersImageSmall, director.getImage('level') );
+            this.levelActor.
+	                setBounds( 0, 110, controls.width, this.levelActor.height );
             this.context.addContextListener(this.levelActor);
 
 	        controls.addChild(this.levelActor);
@@ -1660,12 +1622,13 @@
 
             //////////////////////// info de partida
             this.levelActorEG= new HN.LevelActor().
-                    initialize(this.numbersImageSmall, director.getImage('level')).
+                    initialize(this.numbersImageSmall, director.getImage('level'));
+            this.levelActorEG.
                     setBounds(
                         (this.endGameActor.width-this.levelActor.width)/2,
                         265,
-                        this.levelActor.width,
-                        this.levelActor.height );
+                        this.levelActorEG.width,
+                        this.levelActorEG.height );
             this.endGameActor.addChild(this.levelActorEG);
             this.context.addContextListener(this.levelActorEG);
 
