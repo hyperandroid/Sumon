@@ -515,9 +515,9 @@
             var me= this;
 
             var m= [];
-            m.push(new CAAT.CompoundImage().initialize( me.director.getImage('mode-classic'), 1,3 ));
-            m.push(new CAAT.CompoundImage().initialize( me.director.getImage('mode-progressive'), 1,3 ));
-            m.push(new CAAT.CompoundImage().initialize( me.director.getImage('mode-respawn'), 1,3 ));
+            m.push(new CAAT.SpriteImage().initialize( me.director.getImage('mode-classic'), 1,3 ));
+            m.push(new CAAT.SpriteImage().initialize( me.director.getImage('mode-progressive'), 1,3 ));
+            m.push(new CAAT.SpriteImage().initialize( me.director.getImage('mode-respawn'), 1,3 ));
 
             var modes= [ HN.GameModes.classic, HN.GameModes.progressive, HN.GameModes.respawn ];
 
@@ -540,8 +540,8 @@
                         Math.max( m[index].singleWidth, text.singleWidth),
                         m[index].singleWidth+text.singleHeight );
 
-                var b= new CAAT.Button().
-                        initialize(m[index], 0,1,2,0, function() {
+                var b= new CAAT.Actor().
+                        setAsButton(m[index], 0,1,2,0, function() {
                             me.director.audioPlay('11');
                             me.startGame(me.director,0,modes[index]);
                         }).
@@ -705,17 +705,7 @@
                         );
             }
 
-            var madeWith= new CAAT.Button().
-                    create().
-                    initialize( new CAAT.CompoundImage().initialize(director.getImage('madewith'),1,3), 0,1,2,0 ).
-                    setLocation( dw-90, 0 );
-            madeWith.mouseClick= function(mouseEvent) {
-                window.open('http://labs.hyperandroid.com', 'Hyperandroid');
-            };
-            this.directorScene.addChild(madeWith);
-
-
-            this.buttonImage= new CAAT.CompoundImage().initialize(
+            this.buttonImage= new CAAT.SpriteImage().initialize(
                     director.getImage('buttons'), 7,3 );
 
             var bw=         this.buttonImage.singleWidth;
@@ -723,35 +713,32 @@
             var numButtons= 4;
             var yGap=       10;
 
-            var scores= new CAAT.Button().
-                    create().
-                    initialize( this.buttonImage, 18,19,20,18, function() {
+            var scores= new CAAT.Actor().
+                    setAsButton( this.buttonImage.getRef(), 18,19,20,18, function() {
                         director.audioPlay('11');
                         __enterCSS( document.getElementById('scores'), 700,0, 0,0, me.directorScene);
                     }).
                     setBounds( dw-bw-10, dh-bh-10, bw, bh );
 
-            var info_howto_ci= new CAAT.CompoundImage().initialize( director.getImage('info_howto'), 2, 3 );
+            var info_howto_ci= new CAAT.SpriteImage().initialize( director.getImage('info_howto'), 2, 3 );
             var ihw= info_howto_ci.singleWidth;
             var ihh= info_howto_ci.singleHeight;
 
-            var info= new CAAT.Button().
-                    create().
-                    initialize(info_howto_ci, 0,1,2,0 ).
+            var info= new CAAT.Actor().
+                    setAsButton(info_howto_ci.getRef(), 0,1,2,0,
+                        function(button) {
+                            director.audioPlay('11');
+                            __enterCSS( document.getElementById('about'), -700,0, 0,0, me.directorScene );
+                        }).
                     setBounds( 10, dh-10-ihh, ihw, ihh );
-            info.mouseClick= function( mouseEvent ) {
-                director.audioPlay('11');
-                __enterCSS( document.getElementById('about'), -700,0, 0,0, me.directorScene );
-            };
 
-            var howto= new CAAT.Button().
-                    create().
-                    initialize(info_howto_ci, 3,4,5,3 ).
+            var howto= new CAAT.Actor().
+                    setAsButton(info_howto_ci.getRef(), 3,4,5,3,
+                        function() {
+                            director.audioPlay('11');
+                            __enterCSS( document.getElementById('tutorial'), 700,0, 0,0, me.directorScene );
+                        }).
                     setBounds( 10, dh-10-ihh-ihh-5, ihw, ihh );
-            howto.mouseClick= function( mouseEvent ) {
-                director.audioPlay('11');
-                __enterCSS( document.getElementById('tutorial'), 700,0, 0,0, me.directorScene );
-            };
 
             this.createModeButtons();
 
@@ -778,47 +765,47 @@
             );
             this.directorScene.addChild(logo);
 
+            var madeWith= new CAAT.Actor().
+                    setAsButton( new CAAT.SpriteImage().initialize(director.getImage('madewith'),1,3), 0,1,2,0,
+                        function(button) {
+                            window.open('http://labs.hyperandroid.com', 'Hyperandroid');
+                        }).
+                    setLocation( dw-90, 0 );
+            this.directorScene.addChild(madeWith);
+
+
             this.soundControls(director);
 
             return this;
         },
         soundControls : function(director) {
-            var ci= new CAAT.CompoundImage().initialize( director.getImage('sound'), 2,3 );
+            var ci= new CAAT.SpriteImage().initialize( director.getImage('sound'), 2,3 );
             var dw= director.canvas.width;
             var dh= director.canvas.height;
 
-            var music= new CAAT.Button().
-                    create().
-                    initialize( ci,0,1,0,0, function() {
+            var music= new CAAT.Actor().
+                    setAsButton( ci.getRef(),0,1,0,0, function(button) {
                         director.audioManager.setMusicEnabled( !director.audioManager.isMusicEnabled() );
-                        music.prepare();
+                        if ( director.audioManager.isMusicEnabled() ) {
+                            button.setButtonImageIndex(0,1,0,0);
+                        } else {
+                            button.setButtonImageIndex(2,2,2,2);
+                        }
+
                     }).
                     setBounds( dw-ci.singleWidth-2, 2, ci.singleWidth, ci.singleHeight );
-            music.prepare= function() {
-                if ( director.audioManager.isMusicEnabled() ) {
-                    music.iNormal=0;
-                    music.iOver=1;
-                    music.iCurrent=0;
-                } else {
-                    music.iNormal= music.iOver= music.iCurrent=2;
-                }
-            };
-            var sound= new CAAT.Button().
-                    create().
-                    initialize( ci,3,4,3,3, function() {
+
+
+            var sound= new CAAT.Actor().
+                    setAsButton( ci.getRef(),3,4,3,3, function(button) {
                         director.audioManager.setSoundEffectsEnabled( !director.audioManager.isSoundEffectsEnabled() );
-                        sound.prepare();
+                        if ( director.audioManager.isSoundEffectsEnabled() ) {
+                                button.setButtonImageIndex(3,4,3,3);
+                        } else {
+                            button.setButtonImageIndex(5,5,5,5);
+                        }
                     }).
                     setBounds( dw-ci.singleWidth-2, 2+2+ci.singleHeight, ci.singleWidth, ci.singleHeight );
-            sound.prepare= function() {
-                if ( director.audioManager.isSoundEffectsEnabled() ) {
-                            sound.iNormal=3;
-                            sound.iOver=4;
-                            sound.iCurrent=3;
-                } else {
-                    sound.iNormal= sound.iOver= sound.iCurrent=5;
-                }
-            };
 
             this.directorScene.addChild(sound);
             this.directorScene.addChild(music);

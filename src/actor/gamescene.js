@@ -1270,7 +1270,7 @@
             this.brickWidth=  this.bricksImageAll.singleWidth;
             this.brickHeight= this.bricksImageAll.singleHeight;
 
-            this.buttonImage= new CAAT.CompoundImage().initialize(
+            this.buttonImage= new CAAT.SpriteImage().initialize(
                     director.getImage('buttons'), 7,3 );
             this.starsImage= new CAAT.SpriteImage().initialize(
                     director.getImage('stars'), 24,6 );
@@ -1357,16 +1357,15 @@
             this.directorScene.addChild( controls );
 
             /////////////////////// initialize button
-            var restart= new CAAT.Button().
-                    create().
-                    initialize( this.buttonImage, 9,10,11,9 ).
+            var restart= new CAAT.Actor().
+                    setAsButton( this.buttonImage.getRef(), 9,10,11,9,
+                        function(button) {
+                            me.context.timeUp();
+                        }).
                     setLocation(
                         (controls.width-this.buttonImage.singleWidth)/2,
                         controls.height - this.buttonImage.singleHeight );
 
-            restart.mouseClick= function(mouseEvent) {
-                me.context.timeUp();
-            };
             restart.contextEvent= function(event) {
                 if ( event.source=='context' ) {
                     if ( event.event=='levelchange') {
@@ -1530,17 +1529,18 @@
 
             var me= this;
             var me_endLevel= this.endLevelActor;
-            var continueButton= new CAAT.Button().
-                    create().
-                    initialize( this.buttonImage, 12,13,14,12 );
-            continueButton.setLocation( (this.endLevelActor.width-continueButton.width)/2, this.endLevelActor.height-continueButton.height-50 );
+            var continueButton= new CAAT.Actor().
+                    setAsButton( this.buttonImage.getRef(), 12,13,14,12,
+                        function(button) {
+                            director.audioPlay('11');
+                            me.removeGameEvent( me.endLevelActor, function() {
+                                me.context.nextLevel();
+                            });
+                        });
+            continueButton.setLocation(
+                    (this.endLevelActor.width-continueButton.width)/2,
+                    this.endLevelActor.height-continueButton.height-50 );
 
-            continueButton.mouseClick= function(mouseEvent) {
-                director.audioPlay('11');
-                me.removeGameEvent( me.endLevelActor, function() {
-                    me.context.nextLevel();
-                });
-            };
 
             this.endLevelMessage= new CAAT.Actor().
                     setBackgroundImage( director.getImage('msg1'), true );
@@ -1556,54 +1556,50 @@
             this.endGameActor= new CAAT.ActorContainer().
                     setBackgroundImage( director.getImage('background_op'), true );
 
-            var menu= new CAAT.Button().
-                    create().
-                    initialize( this.buttonImage, 15,16,17,15 );
+            var menu= new CAAT.Actor().
+                    setAsButton( this.buttonImage.getRef(), 15,16,17,15,
+                        function(button) {
+                            director.audioPlay('11');
+
+                            me.endGameActor.enableEvents(false);
+
+                            var a0;
+                            var a1;
+
+                            a0= CAAT.Actor.prototype.ANCHOR_BOTTOM;
+                            a1= CAAT.Actor.prototype.ANCHOR_TOP;
+
+                            director.easeInOut(
+                                0,
+                                CAAT.Scene.EASE_TRANSLATE,
+                                a0,
+                                1,
+                                CAAT.Scene.EASE_TRANSLATE,
+                                a1,
+                                1000,
+                                false,
+                                new CAAT.Interpolator().createExponentialInOutInterpolator(3,false),
+                                new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) );
+                        });
             var me_endGame= this.endGameActor;
-            menu.mouseClick= function(mouseEvent) {
 
-                director.audioPlay('11');
+            var restart= new CAAT.Actor().
+                    setAsButton( this.buttonImage.getRef(), 12,13,14,12,
+                        function(button) {
+                            director.audioPlay('11');
+                            me.removeGameEvent( me.endGameActor, function() {
+                                me.prepareSceneIn(me.context.gameMode);
+                                me.context.initialize();
+                            })
+                        });
 
-                me.endGameActor.enableEvents(false);
-
-                var a0;
-                var a1;
-
-                a0= CAAT.Actor.prototype.ANCHOR_BOTTOM;
-                a1= CAAT.Actor.prototype.ANCHOR_TOP;
-
-                director.easeInOut(
-                    0,
-                    CAAT.Scene.EASE_TRANSLATE,
-                    a0,
-                    1,
-                    CAAT.Scene.EASE_TRANSLATE,
-                    a1,
-                    1000,
-                    false,
-                    new CAAT.Interpolator().createExponentialInOutInterpolator(3,false),
-                    new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) );
-            };
-
-            var restart= new CAAT.Button().
-                    create().
-                    initialize( this.buttonImage, 12,13,14,12 );
-            restart.mouseClick= function(mouseEvent) {
-                director.audioPlay('11');
-                me.removeGameEvent( me.endGameActor, function() {
-                    me.prepareSceneIn(me.context.gameMode);
-                    me.context.initialize();
-                });
-            };
-
-            var tweetImage= new CAAT.CompoundImage().initialize( director.getImage('tweet'), 1, 3 );
-            var tweet= new CAAT.Button().
-                    create().
-                    initialize( tweetImage, 0,1,2,0 );
-            tweet.mouseClick = function(mouseEvent) {
-                var url = "http://twitter.com/home/?status=Wow! I just scored "+me.context.score+" points (mode "+me.context.gameMode.name+") in Sumon. Beat that! http://labs.hyperandroid.com/static/sumon/sumon.html";
-                window.open(url, 'blank', '');
-            };
+            var tweetImage= new CAAT.SpriteImage().initialize( director.getImage('tweet'), 1, 3 );
+            var tweet= new CAAT.Actor().
+                    setAsButton( tweetImage, 0,1,2,0,
+                        function(button) {
+                            var url = "http://twitter.com/home/?status=Wow! I just scored "+me.context.score+" points (mode "+me.context.gameMode.name+") in Sumon. Beat that! http://labs.hyperandroid.com/static/sumon/sumon.html";
+                            window.open(url, 'blank', '');
+                        });
 
             var x= 45;
             //var x= (this.endGameActor.width-2*menu.width-30)/2;
@@ -2166,42 +2162,31 @@
                 );
         },
         soundControls : function(director) {
-            var ci= new CAAT.CompoundImage().initialize( director.getImage('sound'), 2,3 );
+            var ci= new CAAT.SpriteImage().initialize( director.getImage('sound'), 2,3 );
             var dw= director.canvas.width;
             var dh= director.canvas.height;
 
-            var music= new CAAT.Button().
-                    create().
-                    initialize( ci,0,1,0,0, function() {
+            var music= new CAAT.Actor().
+                    setAsButton( ci.getRef(),0,1,0,0, function(button) {
                         director.audioManager.setMusicEnabled( !director.audioManager.isMusicEnabled() );
-                        music.prepare();
+                        if ( director.audioManager.isMusicEnabled() ) {
+                            button.setButtonImageIndex(0,1,0,0);
+                        } else {
+                            button.setButtonImageIndex(2,2,2,2);
+                        }
                     }).
                     setBounds( dw-ci.singleWidth-2, 2, ci.singleWidth, ci.singleHeight );
-            music.prepare= function() {
-                if ( director.audioManager.isMusicEnabled() ) {
-                    music.iNormal=0;
-                    music.iOver=1;
-                    music.iCurrent=0;
-                } else {
-                    music.iNormal= music.iOver= music.iCurrent=2;
-                }
-            };
-            var sound= new CAAT.Button().
-                    create().
-                    initialize( ci,3,4,3,3, function() {
+
+            var sound= new CAAT.Actor().
+                    setAsButton( ci.getRef(),3,4,3,3, function(button) {
                         director.audioManager.setSoundEffectsEnabled( !director.audioManager.isSoundEffectsEnabled() );
-                        sound.prepare();
+                        if ( director.audioManager.isSoundEffectsEnabled() ) {
+                            button.setButtonImageIndex(3,4,3,3);
+                        } else {
+                            button.setButtonImageIndex(5,5,5,5);
+                        }
                     }).
                     setBounds( dw-ci.singleWidth-2, 2+2+ci.singleHeight, ci.singleWidth, ci.singleHeight );
-            sound.prepare= function() {
-                if ( director.audioManager.isSoundEffectsEnabled() ) {
-                            sound.iNormal=3;
-                            sound.iOver=4;
-                            sound.iCurrent=3;
-                } else {
-                    sound.iNormal= sound.iOver= sound.iCurrent=5;
-                }
-            };
 
             this.directorScene.addChild(sound);
             this.directorScene.addChild(music);
