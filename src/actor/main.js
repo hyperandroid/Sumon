@@ -181,7 +181,7 @@ function __end_loading(director) {
 function __Hypernumbers_init()   {
 
     var canvascontainer= document.getElementById('game');
-    var director = new CAAT.Director().initialize(700,500).setClear(false);
+    var director = new CAAT.Director().initializeGL(700,500).setClear(false);
     HN.director= director;
     canvascontainer.appendChild( director.canvas );
 

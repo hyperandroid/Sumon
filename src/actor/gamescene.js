@@ -1476,7 +1476,7 @@
             var actor= new CAAT.Actor();
             actor.__imageIndex= iindex;
             actor.
-                setBackgroundImage( this.starsImage.getRef().setAnimationImageIndex( [iindex] ) ).
+                setBackgroundImage( this.starsImage.getRef().setAnimationImageIndex( [iindex] ), true ).
                 enableEvents(false).
                 setDiscardable(true).
                 setOutOfFrameTime();
