@@ -119,7 +119,7 @@
             contour= contour.concat(contour2);
 
             var pos=0;
-            var z= -director.canvas.height/2;
+            var z= -director.height/2;
 
             for( var i=0; i<contour.length; i++ ) {
 
@@ -580,8 +580,8 @@
             this.director= director;
             this.directorScene= director.createScene();
 
-            var dw= director.canvas.width;
-            var dh= director.canvas.height;
+            var dw= director.width;
+            var dh= director.height;
             var me= this;
 
             this.directorScene.activated= function() {
@@ -609,9 +609,15 @@
             this.directorScene.addChild(ovnitrail);
 
             var ovniImage= new CAAT.SpriteImage().initialize( director.getImage('ovni'), 1, 2 );
-            var smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 32,1 );
 
-            var TT=600;
+            var smokeImage;
+            if ( director.getRenderType()!='CSS' ) {
+                smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 32,1 );
+            } else {
+                smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 1,1 );
+            }
+
+            var TT=1000;
             if ( director.glEnabled ) {
                 TT=6000;
             }
@@ -654,7 +660,7 @@
                                                     var img= smokeImage;
                                                     var offset0= Math.random()*10*(Math.random()<.5?1:-1);
                                                     var offset1= Math.random()*10*(Math.random()<.5?1:-1);
-                                                    ovnitrail.addChildDelayed(
+                                                    var humo=
                                                         new CAAT.Actor().
                                                             setBackgroundImage(
                                                                 smokeImage.getRef().setAnimationImageIndex([0]),
@@ -666,23 +672,31 @@
                                                             enableEvents(false).
                                                             setFrameTime(time, this.smokeTime).
                                                             addBehavior(
-                                                                new CAAT.GenericBehavior().
-                                                                        setFrameTime(time, this.smokeTime).
-                                                                        setValues( 1, .1, null, null, function(value, target, actor ) {
-                                                                            actor.backgroundImage.setAnimationImageIndex( [31-((value*31)>>0)] );
-                                                                        }).
-                                                                        setInterpolator(
-                                                                            new CAAT.Interpolator().createExponentialInInterpolator(
-                                                                                3,
-                                                                                false)
-                                                                        )
-                                                            ).
-                                                            addBehavior(
                                                                 new CAAT.ScaleBehavior().
                                                                         setFrameTime(time, this.smokeTime).
                                                                         setValues( .5,1.5, .5,1.5 )
-                                                            )
-                                                    );
+                                                            );
+                                                    if ( director.getRenderType()==='CSS' ) {
+                                                        humo.addBehavior(
+                                                            new CAAT.AlphaBehavior().
+                                                                    setFrameTime(time, this.smokeTime).
+                                                                    setValues( 1, .1 ));
+                                                    } else {
+                                                        humo.addBehavior(
+                                                            new CAAT.GenericBehavior().
+                                                                    setFrameTime(time, this.smokeTime).
+                                                                    setValues( 1, .1, null, null, function(value, target, actor ) {
+                                                                        actor.setAnimationImageIndex( [31-((value*31)>>0)] );
+                                                                    }).
+                                                                    setInterpolator(
+                                                                        new CAAT.Interpolator().createExponentialInInterpolator(
+                                                                            3,
+                                                                            false)
+                                                                    )
+                                                        );
+                                                    }
+
+                                                    ovnitrail.addChild(humo);
 
                                                     this.prevTime= time;
                                                 }
@@ -780,8 +794,8 @@
         },
         soundControls : function(director) {
             var ci= new CAAT.SpriteImage().initialize( director.getImage('sound'), 2,3 );
-            var dw= director.canvas.width;
-            var dh= director.canvas.height;
+            var dw= director.width;
+            var dh= director.height;
 
             var music= new CAAT.Actor().
                     setAsButton( ci.getRef(),0,1,0,0, function(button) {

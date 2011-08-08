@@ -1,7 +1,6 @@
 function __CAAT__loadingScene(director) {
 
-    var scene= new CAAT.Scene();
-    scene.create();
+    var scene= director.createScene();
 
     var TIME= 3000;
     var time= new Date().getTime();
@@ -25,15 +24,16 @@ function __CAAT__loadingScene(director) {
                     setFrameTime(0,1000).
                     setCycle(true)
             );
-
-    var percent= new CAAT.TextActor().create().setFont('15px sans-serif');
-    scene.addChild(percent);
-
-    var starsImage= new CAAT.SpriteImage().initialize(director.getImage('stars'), 24,6 );
+    var starsImage= null;
+    if ( director.getRenderType()==='CSS' ) {
+        starsImage= new CAAT.SpriteImage().initialize(director.getImage('stars'), 1,6 );
+    } else {
+        starsImage= new CAAT.SpriteImage().initialize(director.getImage('stars'), 24,6 );
+    }
 
     var T= 600;
 
-    background.mouseMove= function(mouseEvent) {
+    var mouseStars= function(mouseEvent) {
 
         for( var i=0; i<3; i++ ) {
             var offset0= Math.random()*10*(Math.random()<.5?1:-1);
@@ -51,24 +51,6 @@ function __CAAT__loadingScene(director) {
                     enableEvents(false).
                     setFrameTime(scene.time, T).
                     addBehavior(
-                        /*
-                        new CAAT.AlphaBehavior().
-                            setFrameTime(scene.time, T).
-                            setValues( 1, .1 ).
-                            setInterpolator(
-                                new CAAT.Interpolator().createExponentialInInterpolator(
-                                    3,
-                                    false)
-                            )*/
-                        new CAAT.GenericBehavior().
-                            setFrameTime(scene.time, T).
-                            setValues( 1, .1, null, null, function(value,target,actor) {
-                                actor.backgroundImage.setAnimationImageIndex( [
-                                        actor.__imageIndex+(23-((23*value)>>0))*actor.backgroundImage.getColumns()
-                                    ] );
-                            })
-                    ).
-                    addBehavior(
                         new CAAT.ScaleBehavior().
                             setFrameTime(scene.time, T).
                             setValues( 1,5, 1,5 ).
@@ -79,15 +61,34 @@ function __CAAT__loadingScene(director) {
                             )
                     );
 
+            if ( director.getRenderType()==='CSS' ) {
+                actorStar.addBehavior(
+                    new CAAT.AlphaBehavior().
+                        setFrameTime(scene.time, T).
+                        setValues( 1, .1 ).
+                        setInterpolator(
+                            new CAAT.Interpolator().createExponentialInInterpolator(
+                                3,
+                                false)
+                        ));
+            } else {
+                actorStar.addBehavior(
+                    new CAAT.GenericBehavior().
+                        setFrameTime(scene.time, T).
+                        setValues( 1, .1, null, null, function(value,target,actor) {
+                            actor.backgroundImage.setAnimationImageIndex( [
+                                    actor.__imageIndex+(23-((23*value)>>0))*actor.backgroundImage.getColumns()
+                                ] );
+                        }));
+            }
+
             background.addChild(actorStar);
         }
     };
+    background.mouseMove= mouseStars;
+    background.mouseDrag= mouseStars;
 
     scene.loadedImage = function(count, total) {
-        percent.setText( parseInt((count/total*100)>>0)+' %' );
-        percent.calcTextSize(director);
-        percent.setFillStyle('white');
-        percent.setLocation( 10+lading.x + (lading.width-percent.width)/2, lading.y+lading.height-10 );
 
         if ( count==total ) {
 
@@ -101,7 +102,6 @@ function __CAAT__loadingScene(director) {
                 setTimeout(function() {
                     lading.setOutOfFrameTime();
                     rueda.setOutOfFrameTime();
-                    percent.setOutOfFrameTime();
 
                     __end_loading(director);
                 },
@@ -118,56 +118,19 @@ function __CAAT__loadingScene(director) {
 
 function __end_loading(director) {
 
-    /**
-     * build an image of numbers over background.
-     * @param numbers
-     * @param bgnumbers
-     */
-    function buildNumbersImage(bricks,bricksbg) {
-
-        var numbers= new CAAT.CompoundImage().initialize(bricks,1,10 );
-        var bgnumbers= new CAAT.CompoundImage().initialize(bricksbg,1,9 );
-
-        var nw= bgnumbers.singleWidth*10;
-        var nh= bgnumbers.singleHeight*bgnumbers.cols;
-
-        var cx= (bgnumbers.singleWidth-numbers.singleWidth)/2;
-        var cy= (bgnumbers.singleHeight-numbers.singleHeight)/2;
-
-        var img= document.createElement('canvas');
-        img.width= nw;
-        img.height= nh;
-        var ctx= img.getContext('2d');
-
-        for( var i=0; i<bgnumbers.cols; i++ ) {
-            for( var j=0; j<10; j++ ) {
-                bgnumbers.paint( ctx, i, j*bgnumbers.singleWidth, i*bgnumbers.singleHeight );
-                numbers.paint( ctx, j, j*bgnumbers.singleWidth+cx, i*bgnumbers.singleHeight+cy );
-            }
-        }
-
-        return img;
-    }
-
-    director.__next_images.push( {
-        id:'bricks',
-        image: buildNumbersImage( director.__next_images[2].image, director.__next_images[3].image ) } );
-    director.__next_images.splice(2,1);
-    director.__next_images.splice(2,1);
-
-    
     director.emptyScenes();
 
     // BUGBUG artifact
     director.setImagesCache(director.__next_images);
     delete director.__next_images;
     
-    var gardenScene= new HN.GardenScene().create(director, 120);
+    var gardenScene= new HN.GardenScene().create(director, 0);
     var gameScene= new HN.GameScene().create(director, HN.GameModes.respawn );
     gardenScene.gameScene= gameScene;
-    //gameScene.gardenScene= gardenScene;
     gameScene.addGameListener( gardenScene );
 
+
+//    gameScene.prepareSceneIn(HN.GameModes.classic);
     director.easeIn(
             0,
             CAAT.Scene.prototype.EASE_TRANSLATE,
@@ -180,10 +143,13 @@ function __end_loading(director) {
 
 function __Hypernumbers_init()   {
 
-    var canvascontainer= document.getElementById('game');
-    var director = new CAAT.Director().initializeGL(700,500).setClear(false);
+//    var director = new CAAT.Director().initialize(700,500,document.getElementById('director')).setClear(false);
+
+    var director = new CAAT.Director().initialize(700,500).setClear(false);
+    document.getElementById('game').appendChild(director.canvas);
+
+
     HN.director= director;
-    canvascontainer.appendChild( director.canvas );
 
     new CAAT.ImagePreloader().loadImages(
         [
@@ -197,19 +163,17 @@ function __Hypernumbers_init()   {
 
             if ( counter==images.length ) {
 
-                images[0].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,24,images[0].image);
+                if ( director.getRenderType()!='CSS') {
+                    images[0].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,24,images[0].image);
+                }
                 director.setImagesCache(images);
-                
                 var scene_loading= __CAAT__loadingScene(director);
-                director.addScene( scene_loading );
-                director.setScene(0);
 
                 new CAAT.ImagePreloader().loadImages(
                     [
                         {id:'smoke',            url:'res/img/humo.png'},
                         {id:'stars',            url:'res/img/stars.png'},
-                        {id:'bricks',           url:'res/img/nums.png'},
-                        {id:'bricks-bg',        url:'res/img/nums-bg.png'},
+                        {id:'bricks',           url:'res/img/bricks.png'},
                         {id:'buttons',          url:'res/img/botones.png'},
                         {id:'numbers',          url:'res/img/numbers.png'},
                         {id:'numberssmall',     url:'res/img/numbers_s.png'},
@@ -254,9 +218,12 @@ function __Hypernumbers_init()   {
                     function( counter, images ) {
 
                         if ( counter==images.length ) {
-                            images[0].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(0,1,32,images[0].image);
-                            images[1].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,24,images[1].image);
-                            images[41].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,16,images[41].image);
+
+                            if ( director.getRenderType()!=='CSS') {
+                                images[0].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(0,1,32,images[0].image);
+                                images[1].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,24,images[1].image);
+                                images[40].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,16,images[40].image);
+                            }
 
                             director.__next_images= images;
                             
@@ -282,6 +249,7 @@ function __Hypernumbers_init()   {
 
     CAAT.loop(60);
 }
+
 
 function __enterCSS( domElement, x0,y0, x1,y1, scene ) {
 
