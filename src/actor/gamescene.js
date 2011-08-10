@@ -278,12 +278,16 @@
                                 var iindex= (Math.random()*6)>>0;
                                 var actor2= scene.fallingStarCache[scene.fallingStarCacheIndex%scene.fallingStarCache.length];
                                 scene.fallingStarCacheIndex++;
-                                actor2.
-                                    setAnimationImageIndex( [iindex] ).
-                                    setFrameTime(actor.time, 400).
-                                    setLocation( offset0+actor.x+actor.width/2, offset1+actor.y);
-                                actor2.__parent.addChild(actor2);
-                                actor2.__sb.setFrameTime(actor.time,400);
+
+                                // check for no parent, that is, no active actor.
+                                if ( !actor2.domParent ) {
+                                    actor2.
+                                        setAnimationImageIndex( [iindex] ).
+                                        setFrameTime(actor.time, 400).
+                                        setLocation( offset0+actor.x+actor.width/2, offset1+actor.y);
+                                    actor2.__parent.addChild(actor2);
+                                    actor2.__sb.setFrameTime(actor.time,400);
+                                }
                             }
                         }
                     }).
@@ -846,13 +850,13 @@
 
             for( i=0; i<this.numDigits; i++ ) {
                 var actor= new CAAT.Actor().
-                        setScale( this.FONT_CORRECTION, this.FONT_CORRECTION ).
                         setBackgroundImage(font.getRef(), true).
                         setLocation(
                             (this.width-this.numDigits*this.font.singleWidth*this.FONT_CORRECTION)/2 +
-                                (i*this.font.singleWidth*this.FONT_CORRECTION),
+                                (i*this.font.singleWidth*this.FONT_CORRECTION) - 5,
                             12
-                        );
+                        ).
+                        setScale( this.FONT_CORRECTION, this.FONT_CORRECTION );
 
                 this.addChild(actor);
             }
@@ -1493,7 +1497,7 @@
             }
         },
         createCachedStar : function() {
-            var iindex= (Math.random()*6)>>0;
+            var iindex= (Math.random()*this.starsImage.columns)>>0;
             var actor= new CAAT.Actor();
             actor.__imageIndex= iindex;
             actor.
