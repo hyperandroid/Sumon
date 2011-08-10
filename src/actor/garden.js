@@ -680,19 +680,14 @@
                                                         humo.addBehavior(
                                                             new CAAT.AlphaBehavior().
                                                                     setFrameTime(time, this.smokeTime).
-                                                                    setValues( 1, .1 ));
+                                                                    setValues( 1, 0 ));
                                                     } else {
                                                         humo.addBehavior(
                                                             new CAAT.GenericBehavior().
                                                                     setFrameTime(time, this.smokeTime).
-                                                                    setValues( 1, .1, null, null, function(value, target, actor ) {
+                                                                    setValues( 1, 0, null, null, function(value, target, actor ) {
                                                                         actor.setAnimationImageIndex( [31-((value*31)>>0)] );
-                                                                    }).
-                                                                    setInterpolator(
-                                                                        new CAAT.Interpolator().createExponentialInInterpolator(
-                                                                            3,
-                                                                            false)
-                                                                    )
+                                                                    })
                                                         );
                                                     }
 

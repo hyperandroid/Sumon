@@ -143,10 +143,12 @@ function __end_loading(director) {
 
 function __Hypernumbers_init()   {
 
-//    var director = new CAAT.Director().initialize(700,500,document.getElementById('director')).setClear(false);
+//    var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
 
     var director = new CAAT.Director().initialize(700,500).setClear(false);
     document.getElementById('game').appendChild(director.canvas);
+
+    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);    
 
 
     HN.director= director;

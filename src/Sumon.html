@@ -5,49 +5,55 @@
     <title></title>
 
     <!-- caat -------------->
-
-    <script type="text/javascript" src="lib/caat.js"></script>
 <!--
+    <script type="text/javascript" src="lib/caat.js"></script>
+    -->
 
-    <script type="text/javascript" src="../../CAAT/src/CAAT.js"></script>
 
-    <script type="text/javascript" src="../../CAAT/src/core/class.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/core/browserdetect.js"></script>
+<script type="text/javascript" src="../../CAAT/src/CAAT.js"></script>
 
-    <script type="text/javascript" src="../../CAAT/src/model/audio.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/model/actor.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/model/extraActor.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/model/conpoundimage.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/model/imagepreloader.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/model/director.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/model/mouseevent.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/model/scene.js"></script>
+<script type="text/javascript" src="../../CAAT/src/core/class.js"></script>
+<script type="text/javascript" src="../../CAAT/src/core/browserdetect.js"></script>
 
-    <script type="text/javascript" src="../../CAAT/src/math/affinetransform2D.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/math/point.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/math/rectangle.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/math/bezier.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/math/color.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/audio.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/actor.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/actorCSS.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/conpoundimage.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/imagepreloader.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/director.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/directorCSS.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/mouseevent.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/timer.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/scene.js"></script>
+<script type="text/javascript" src="../../CAAT/src/model/sceneCSS.js"></script>
 
-    <script type="text/javascript" src="../../CAAT/src/path/path.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/path/pathactor.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/path/interpolator.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/path/interpolatoractor.js"></script>
+<script type="text/javascript" src="../../CAAT/src/math/affinetransform2D.js"></script>
+<script type="text/javascript" src="../../CAAT/src/math/point.js"></script>
+<script type="text/javascript" src="../../CAAT/src/math/rectangle.js"></script>
+<script type="text/javascript" src="../../CAAT/src/math/bezier.js"></script>
+<script type="text/javascript" src="../../CAAT/src/math/color.js"></script>
 
-    <script type="text/javascript" src="../../CAAT/src/behaviour/behaviour.js"></script>
+<script type="text/javascript" src="../../CAAT/src/path/path.js"></script>
+<script type="text/javascript" src="../../CAAT/src/path/pathactor.js"></script>
+<script type="text/javascript" src="../../CAAT/src/path/interpolator.js"></script>
 
-    <script type="text/javascript" src="../../CAAT/src/modules/modules.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/modules/LocalStorage/LocalStorage.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/modules/CircleManager/PackedCircle.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/modules/CircleManager/PackedCircleManager.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/modules/ImageUtil/ImageUtil.js"></script>
+<script type="text/javascript" src="../../CAAT/src/behaviour/behaviour.js"></script>
 
-    <script type="text/javascript" src="../../CAAT/src/texture/plasma.js"></script>
+<script type="text/javascript" src="../../CAAT/src/modules/modules.js"></script>
+<script type="text/javascript" src="../../CAAT/src/modules/ImageUtil/ImageUtil.js"></script>
+<script type="text/javascript" src="../../CAAT/src/modules/LocalStorage/LocalStorage.js"></script>
 
-    <script type="text/javascript" src="../../CAAT/src/webgl/ShaderUtil.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/webgl/glu.js"></script>
-    <script type="text/javascript" src="../../CAAT/src/webgl/glTexturePage.js"></script>
+<script type="text/javascript" src="../../CAAT/src/webgl/glTexturePage.js"></script>
+<script type="text/javascript" src="../../CAAT/src/webgl/glu.js"></script>
+<script type="text/javascript" src="../../CAAT/src/webgl/ShaderUtil.js"></script>
 
+<script>
+/*
+(function() {
+    CAAT.SetCSSRenderer();
+})();
+*/
+</script>
 
     
 
@@ -60,9 +66,9 @@
     <script type="text/javascript" src="actor/main.js"></script>
 
 </head>
-<body bgcolor="#000" >
+<body bgcolor="#000" style="margin:0; padding:0;" >
 
-
+<!--
 <audio src='res/sound/01.mp3' preload='auto' id='audio_01'></audio>
 <audio src='res/sound/10.mp3' preload='auto' id='audio_10'></audio>
 <audio src='res/sound/11.mp3' preload='auto' id='audio_11'></audio>
@@ -73,7 +79,7 @@
 <audio src='res/sound/suma_mal.mp3' preload='auto' id='sumamal'></audio>
 
 <audio src='res/sound/music.mp3' preload='auto' id='music'></audio>
-
+-->
 
 
 
@@ -93,9 +99,8 @@
 
 
             
-<div class="game-container" id="gamecontainer" style="left:100px; position: relative; overflow: hidden; width:700px; height:500px;">
 
-        <div class="game_holder" id="game"></div>
+        <div class="game_holder" id="game" style="position:absolute; overflow:hidden; left:0; top:0; width:100%; height:100%;"></div>
 
         <div id="about" style="position:absolute; display: block; left: -700px; filter:alpha(opacity=90); opacity: 0.9; width:700px; height: 500px; background: url(http://static.ideateca.com/fb/images/sumon/pages/about.jpg) no-repeat 0 0;">
           <a id="about_menu" href="javascript:;" onclick="__enterCSS( document.getElementById('about'), 0,0, -700,0, HN.director.currentScene);" style="position:absolute; left: 9px; top: 27px; width:152px; height: 57px; text-align: left; overflow: hidden; text-indent: -9999px">Menœ</a>
@@ -203,8 +208,6 @@
             </tr>
           </table>
         </div> <!-- /scores -->
-
-</div>
 
     <div id="push"></div>
 
