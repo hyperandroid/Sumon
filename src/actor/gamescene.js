@@ -766,7 +766,7 @@
 
                 var i,
                     pos=0,
-                    z= -director.height/2,
+                    z= 0,
                     point= new CAAT.Point(),
                     m= this.worldModelViewMatrix;
 

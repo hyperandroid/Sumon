@@ -124,13 +124,11 @@ function __end_loading(director) {
     director.setImagesCache(director.__next_images);
     delete director.__next_images;
     
-    var gardenScene= new HN.GardenScene().create(director, 0);
+    var gardenScene= new HN.GardenScene().create(director, (director.getRenderType()==='CANVAS') ? 120 : 0);
     var gameScene= new HN.GameScene().create(director, HN.GameModes.respawn );
     gardenScene.gameScene= gameScene;
     gameScene.addGameListener( gardenScene );
 
-
-//    gameScene.prepareSceneIn(HN.GameModes.classic);
     director.easeIn(
             0,
             CAAT.Scene.prototype.EASE_TRANSLATE,
@@ -145,10 +143,10 @@ function __Hypernumbers_init()   {
 
 //    var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
 
-    var director = new CAAT.Director().initialize(700,500).setClear(false);
+    var director = new CAAT.Director().initializeGL(700,500).setClear(false);
     document.getElementById('game').appendChild(director.canvas);
 
-    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);    
+    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
 
 
     HN.director= director;
