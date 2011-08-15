@@ -143,7 +143,7 @@ function __Hypernumbers_init()   {
 
 //    var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
 
-    var director = new CAAT.Director().initializeGL(700,500).setClear(false);
+    var director = new CAAT.Director().initialize(700,500).setClear(false);
     document.getElementById('game').appendChild(director.canvas);
 
     director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);

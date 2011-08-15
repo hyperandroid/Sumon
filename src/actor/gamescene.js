@@ -275,18 +275,19 @@
                                 var offset0= Math.random()*10*(Math.random()<.5?1:-1);
                                 var offset1= Math.random()*10*(Math.random()<.5?1:-1);
 
-                                var iindex= (Math.random()*6)>>0;
-                                var actor2= scene.fallingStarCache[scene.fallingStarCacheIndex%scene.fallingStarCache.length];
-                                scene.fallingStarCacheIndex++;
-
-                                // check for no parent, that is, no active actor.
-                                if ( !actor2.domParent ) {
-                                    actor2.
-                                        setAnimationImageIndex( [iindex] ).
-                                        setFrameTime(actor.time, 400).
-                                        setLocation( offset0+actor.x+actor.width/2, offset1+actor.y);
-                                    actor2.__parent.addChild(actor2);
-                                    actor2.__sb.setFrameTime(actor.time,400);
+                                if ( scene.fallingStarCache.length>0 ) {
+                                    var actor2= scene.fallingStarCache.shift();
+                                    // check for no parent, that is, no active actor.
+                                    if ( !actor2.domParent ) {
+                                        actor2.
+                                            setAnimationImageIndex( [(Math.random()*6)>>0] ).
+                                            setFrameTime(actor.time, 400).
+                                            setLocation(
+                                                offset0+actor.x+actor.width/2,
+                                                offset1+actor.y);
+                                        actor2.__parent.addChild(actor2);
+                                        actor2.__sb.setFrameTime(actor.time,400);
+                                    }
                                 }
                             }
                         }
@@ -1234,12 +1235,8 @@
         particleContainer:          null,
 
         selectionStarCache:         null,
-        selectionStarCacheIndex:    0,
         fallingStarCache:           null,
-        fallingStarCacheIndex:      0,
 
-//        bricksImage:                null,
-//        bricksBGImage:              null,
         brickWidth:                 0,
         brickHeight:                0,
         buttonImage:                null,
@@ -1482,16 +1479,32 @@
             this.selectionStarCache= [];
             this.fallingStarCache=   [];
 
-            var i,actor;
+            var i,actor,me;
+
+            me= this;
 
             for( i=0; i<16*4; i++ ) {
                 actor= this.createSelectionStarCache();
+                actor.addListener( {
+                    actorLifeCycleEvent : function(actor, event, time) {
+                        if (event === 'destroyed') {
+                            me.selectionStarCache.push(actor);
+                        }
+                    }
+                });
                 actor.__parent= this.particleContainer;
                 this.selectionStarCache.push(actor);
             }
 
             for( i=0; i<384; i++ ) {
                 var actor= this.createCachedStar();
+                actor.addListener( {
+                    actorLifeCycleEvent : function(actor, event, time) {
+                        if (event === 'destroyed') {
+                            me.fallingStarCache.push(actor);
+                        }
+                    }
+                });
                 actor.__parent= this.particleContainer;
                 this.fallingStarCache.push(actor);
             }
@@ -1931,15 +1944,15 @@
                     var x1= x0+ R*Math.cos( i*rad );
                     var y1= y0+ R*Math.sin( i*rad );
 
-                    var iindex= (Math.random()*6)>>0;
-                    var actor= this.selectionStarCache[this.selectionStarCacheIndex%this.selectionStarCache.length];
-                    this.selectionStarCacheIndex++;
-                    actor.setFrameTime(this.directorScene.time, T);
-                    actor.backgroundImage.setAnimationImageIndex( [iindex] );
-                    actor.__trb.setFrameTime(this.directorScene.time, T);
-                    actor.__trb.path.setInitialPosition(x0,y0).setFinalPosition(x1,y1);
-                    actor.__sb.setFrameTime(this.directorScene.time,T);
-                    actor.__parent.addChild(actor);
+                    if ( this.selectionStarCache.length ) {
+                        var actor= this.selectionStarCache.shift();
+                        actor.setFrameTime(this.directorScene.time, T);
+                        actor.backgroundImage.setAnimationImageIndex( [(Math.random()*6)>>0] );
+                        actor.__trb.setFrameTime(this.directorScene.time, T);
+                        actor.__trb.path.setInitialPosition(x0,y0).setFinalPosition(x1,y1);
+                        actor.__sb.setFrameTime(this.directorScene.time,T);
+                        actor.__parent.addChild(actor);
+                    }
                 }
 
                 brickActor.setSelected();
