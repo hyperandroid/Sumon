@@ -816,10 +816,22 @@ Function.prototype.bind= function() {
          * Set the behavior path.
          * The path can be any length, and will take behaviorDuration time to be traversed.
          * @param {CAAT.Path}
+            *
+         * @deprecated
          */
         setPath : function(path) {
             this.path= path;
             return this;
+        },
+
+        /**
+         * Set the behavior path.
+         * The path can be any length, and will take behaviorDuration time to be traversed.
+         * @param {CAAT.Path}
+         * @return this
+         */
+        setValues : function(path) {
+            return this.setPath(path);
         },
 
         setFrameTime : function( startTime, duration ) {
@@ -6734,6 +6746,8 @@ var cp1= proxy(
             this.shift =        sourceEvent.shiftKey;
             this.meta =         sourceEvent.metaKey;
             this.sourceEvent=   sourceEvent;
+            this.x=             x;
+            this.y=             y;
 			return this;
 		},
 		isAltDown : function() {

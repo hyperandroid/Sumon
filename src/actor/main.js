@@ -123,7 +123,7 @@ function __end_loading(director) {
     // BUGBUG artifact
     director.setImagesCache(director.__next_images);
     delete director.__next_images;
-    
+
     var gardenScene= new HN.GardenScene().create(director, (director.getRenderType()==='CANVAS') ? 120 : 0);
     var gameScene= new HN.GameScene().create(director, HN.GameModes.respawn );
     gardenScene.gameScene= gameScene;
@@ -136,17 +136,16 @@ function __end_loading(director) {
             false,
             CAAT.Actor.prototype.ANCHOR_TOP,
             new CAAT.Interpolator().createExponentialInOutInterpolator(5,false) );
-
 }
 
 function __Hypernumbers_init()   {
 
-//    var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
+    //var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
 
     var director = new CAAT.Director().initialize(700,500).setClear(false);
     document.getElementById('game').appendChild(director.canvas);
 
-    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
+//    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
 
 
     HN.director= director;
@@ -226,7 +225,7 @@ function __Hypernumbers_init()   {
                             }
 
                             director.__next_images= images;
-                            
+
                             director.
                                     addAudio('01',              document.getElementById('audio_01')).
                                     addAudio('10',              document.getElementById('audio_10')).
@@ -237,9 +236,11 @@ function __Hypernumbers_init()   {
                                     addAudio('deseleccionar',   document.getElementById('deseleccionar')).
                                     addAudio('music',           document.getElementById('music'));
 
+
                         }
 
                         scene_loading.loadedImage(counter, images.length);
+
                     }
                 );
 
@@ -286,3 +287,4 @@ function __enterCSS( domElement, x0,y0, x1,y1, scene ) {
 }
 
 window.addEventListener('load', __Hypernumbers_init, false);
+//__Hypernumbers_init();

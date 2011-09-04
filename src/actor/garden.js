@@ -123,7 +123,7 @@
 
             for( var i=0; i<contour.length; i++ ) {
 
-                wmv.transformCoord[contour[i]];
+                wmv.transformCoord(contour[i]);
 
                 this.__polyLine[pos++]= contour[i].x;
                 this.__polyLine[pos++]= contour[i].y;

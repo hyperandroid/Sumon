@@ -1288,7 +1288,7 @@
 
             this.buttonImage= new CAAT.SpriteImage().initialize(
                     director.getImage('buttons'), 7,3 );
-            this.starsImage;
+            
             if ( director.getRenderType()==='CSS' ) {
                 this.starsImage= new CAAT.SpriteImage().initialize(
                         director.getImage('stars'), 1,6 );

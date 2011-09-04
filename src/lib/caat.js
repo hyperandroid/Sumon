@@ -816,10 +816,22 @@ Function.prototype.bind= function() {
          * Set the behavior path.
          * The path can be any length, and will take behaviorDuration time to be traversed.
          * @param {CAAT.Path}
+            *
+         * @deprecated
          */
         setPath : function(path) {
             this.path= path;
             return this;
+        },
+
+        /**
+         * Set the behavior path.
+         * The path can be any length, and will take behaviorDuration time to be traversed.
+         * @param {CAAT.Path}
+         * @return this
+         */
+        setValues : function(path) {
+            return this.setPath(path);
         },
 
         setFrameTime : function( startTime, duration ) {
@@ -3589,10 +3601,21 @@ var cp1= proxy(
          * @param y {float} y position
          *
          * @return this
+         * @deprecated
          */
         centerOn : function( x,y ) {
             this.setLocation( x-this.width/2, y-this.height/2 );
             return this;
+        },
+        /**
+         * Center this actor at position (x,y).
+         * @param x {float} x position
+         * @param y {float} y position
+         *
+         * @return this
+         */
+        centerAt : function(x,y) {
+            return this.centerOn(x,y);
         },
         /**
          * If GL is enables, get this background image's texture page, otherwise it will fail.
@@ -6187,7 +6210,7 @@ var cp1= proxy(
                 var y= centerY + rr*Math.sin(angleStar);
                 ctx.lineTo(x,y);
             }
-            ctx.closePath();
+//            ctx.closePath();
 
             ctx.lineTo(
                 centerX + r1*Math.cos(this.initialAngle),
@@ -8452,6 +8475,8 @@ var cp1= proxy(
             this.shift =        sourceEvent.shiftKey;
             this.meta =         sourceEvent.metaKey;
             this.sourceEvent=   sourceEvent;
+            this.x=             x;
+            this.y=             y;
 			return this;
 		},
 		isAltDown : function() {
@@ -10904,6 +10929,68 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
         }
     };
 
+})();
+(function() {
+    CAAT.modules.LayoutUtils= {};
+
+    CAAT.modules.LayoutUtils.row= function( dst, what_to_layout_array, constraint_object ) {
+        var actors= what_to_layout_array;
+        var co= constraint_object;
+
+        var width= dst.width;
+        var x=0, y=0, i=0, l=0;
+        var actor_max_h= Number.MIN_VALUE, actor_max_w= Number.MAX_VALUE;
+
+        // compute max/min actor list size.
+        for( i=actors.length-1; i; i-=1 ) {
+            if ( actor_max_w<actors[i].width ) {
+                actor_max_w= actors[i].width;
+            }
+            if ( actor_max_h<actors[i].height ) {
+                actor_max_h= actors[i].height;
+            }
+        }
+
+        if ( co.padding_left ) {
+            x= co.padding_left;
+            width-= x;
+        }
+        if ( co.padding_right ) {
+            width-= co.padding_right;
+        }
+
+        if ( co.top ) {
+            var top= parseInt(co.top, 10);
+            if ( !isNaN(top) ) {
+                y= top;
+            } else {
+                // not number
+                switch(co.top) {
+                    case 'center':
+                        y= (dst.height-actor_max_h)/2;
+                        break;
+                    case 'top':
+                        y=0;
+                        break;
+                    case 'bottom':
+                        y= dst.height-actor_max_h;
+                        break;
+                    defatul:
+                        y= 0;
+                }
+            }
+        }
+
+        // space for each actor
+        var actor_area= width / actors.length;
+
+        for( i=0, l=actors.length; i<l; i++ ) {
+            actors[i].setLocation(
+                x + i * actor_area + (actor_area - actors[i].width) / 2,
+                y);
+        }
+
+    };
 })();/**
  * @author  Hyperandroid  ||  http://hyperandroid.com/
  *
