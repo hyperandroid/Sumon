@@ -34,7 +34,8 @@
         timeCleared:    800,
 
         brick:          null,
-        isFalling:      false,
+
+        status:         0,  // regular state, 1: fallind, 2: cleared.
 
         ab:             null,
         sb:             null,
@@ -80,10 +81,14 @@
                     setValues( 1, 1.2, 1, 1.2 ).
                     setPingPong();
 
-            document.body.style.cursor = 'pointer';
+            if ( navigator.browser!=='iOS' ) {
+                CAAT.setCursor('pointer');
+            }
         },
         mouseExit : function(mouseEvent) {
-            document.body.style.cursor = 'default';
+            if ( navigator.browser!=='iOS' ) {
+                CAAT.setCursor('default');
+            }
         },
         mouseDown : function(mouseEvent) {
             this.brick.changeSelection();
@@ -271,7 +276,7 @@
                         },
                         behaviorApplied : function(behavior, time, normalizedTime, actor, value) {
 
-                            for( var i=0; i<3; i++ ) {
+                            for( var i=0; i< (navigator.browser==='iOS' ? 1 : 3); i++ ) {
                                 var offset0= Math.random()*10*(Math.random()<.5?1:-1);
                                 var offset1= Math.random()*10*(Math.random()<.5?1:-1);
 
@@ -329,12 +334,15 @@
 
             var itick= director.getImage('rclock-tick');
             var itickci;
+/*
             if ( director.getRenderType()==='CSS' ) {
                 itickci= new CAAT.SpriteImage().initialize( itick, 1, 1 );
             } else {
+            */
                 itickci= new CAAT.SpriteImage().initialize( itick, 16, 1 );
+            /*
             }
-
+*/
             var ibg= director.getImage('rclock-bg');
             var iarrow= director.getImage('rclock-arrow');
             var me= this;
@@ -366,13 +374,14 @@
                             setFrameTime( i*this.respawnTime/NTicks, 300 ).
                             setValues( 1,3, 1,3 )
                     );
-
+/*
                 if ( director.getRenderType()==='CSS' ) {
                     cb.addBehavior(
                             new CAAT.AlphaBehavior().
                                 setFrameTime( i*this.respawnTime/NTicks, 300 ).
                                 setValues( 1, 0 ) );
                 } else {
+                */
                     cb.addBehavior(
                         new CAAT.GenericBehavior().
                             setFrameTime( i*this.respawnTime/NTicks, 300 ).
@@ -380,9 +389,9 @@
                                 actor.setAnimationImageIndex( [15-((value*15)>>0)] );
                             })
                     );
-
+/*
                 }
-
+*/
 
                 tick.addBehavior(cb);
             }
@@ -601,7 +610,8 @@
         setImages : function( background, progress ){
             this.actorventana.setBackgroundImage(background, true);
             this.actorcrono.setBackgroundImage(progress, true);
-            this.actorcrono.setClip( true );
+            //this.actorcrono.setClip( true );
+            this.actorcrono.setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE );
             return this;
         },
         animate : function(director, time) {
@@ -632,11 +642,16 @@
 })();
 
 (function() {
-    HN.SelectionPath= function() {
+    HN.SelectionPath= function(director) {
         HN.SelectionPath.superclass.constructor.call(this);
-        this.coords= [];
-        this.particles= [];
-        this.fillStyle= null;
+
+        this.coords=        [];
+        this.particles=     [];
+        this.fillStyle=     null;
+        this.bolasImage=
+                new CAAT.SpriteImage().initialize(
+                    director.getImage('bolas'),1,8);
+        this.director=      director;
         return this;
     };
 
@@ -649,11 +664,17 @@
         particlesPerSegment:    10,
         traversingPathTime:     3000,
         context:                null,
+        bolasImage:             null,
+        director:               null,
 
+        /**
+         *
+         * @param bolas {CAAT.SpriteImage}
+         */
         initialize : function() {
-            this.coords= [];
-            this.path=           null;
-            this.pathMeasure=    null;
+            this.coords=        [];
+            this.path=          null;
+            this.pathMeasure=   null;
         },
         setup : function( context, brickActors ) {
 
@@ -681,40 +702,41 @@
         setupPath : function() {
             this.coords= [];
 
-            var numberWidth= this.brickActors[0][0].width;
-            var numberHeight= this.brickActors[0][0].height;
-            var offsetX= (this.context.columns-this.context.currentColumns)/2*numberWidth;
-            var offsetY= (this.context.rows-this.context.currentRows)/2*numberHeight;
+            if ( this.context.selectedList.length ) {
+                var numberWidth= this.brickActors[0][0].width;
+                var numberHeight= this.brickActors[0][0].height;
+                var offsetX= (this.context.columns-this.context.currentColumns)/2*numberWidth;
+                var offsetY= (this.context.rows-this.context.currentRows)/2*numberHeight;
 
-            // get selected bricks screen coords.
-            for( i=0; i<this.context.selectedList.length; i++ )  {
-                var brick= this.context.selectedList[i];
-                var brickActor= this.brickActors[brick.row][brick.column];
-                this.coords.push(
-                    {
-                        x: brickActor.x + brickActor.width/2,// + offsetX,
-                        y: brickActor.y + brickActor.height/2// + offsetY
-                    });
+                // get selected bricks screen coords.
+                for( i=0; i<this.context.selectedList.length; i++ )  {
+                    var brick= this.context.selectedList[i];
+                    var brickActor= this.brickActors[brick.row][brick.column];
+                    this.coords.push(
+                        {
+                            x: brickActor.x + brickActor.width/2,// + offsetX,
+                            y: brickActor.y + brickActor.height/2// + offsetY
+                        });
+                }
+
+                // setup a path for the coordinates.
+                this.path= new CAAT.Path();
+                this.path.beginPath( this.coords[0].x, this.coords[0].y );
+                for( i=1; i<this.context.selectedList.length; i++ ) {
+                    this.path.addLineTo( this.coords[i].x, this.coords[i].y );
+                }
+                this.path.endPath();
+                this.pathMeasure= new CAAT.PathBehavior().
+                        setPath(this.path).
+                        setFrameTime(0, this.traversingPathTime*this.context.selectedList.length).
+                        setCycle(true);
             }
-
-            // setup a path for the coordinates.
-            this.path= new CAAT.Path();
-            this.path.beginPath( this.coords[0].x, this.coords[0].y );
-            for( i=1; i<this.context.selectedList.length; i++ ) {
-                this.path.addLineTo( this.coords[i].x, this.coords[i].y );
-            }
-            this.path.endPath();
-            this.pathMeasure= new CAAT.PathBehavior().
-                    setPath(this.path).
-                    setFrameTime(0, this.traversingPathTime*this.context.selectedList.length).
-                    setCycle(true);
-
         },
         paint : function(director, time)    {
             if ( null!=this.context && 0!=this.context.selectedList.length ) {
 
                 var i;
-                this.setupPath();
+                //this.setupPath();
 
 
                 var ctx= director.ctx;
@@ -729,29 +751,28 @@
                 ctx.lineCap=        'round';
                 ctx.lineJoin=       'round';
 
-                for( i=2; i<=8; i+=2 ) {
+                for( i=2; i<=(navigator.browser==='iOS' ? 2 : 8); i+=2 ) {
 
                     ctx.lineWidth=  i;
                     ctx.globalAlpha= .5 - i/8/3;
                     ctx.stroke();
                 }
 
-                // draw particles.
-                ctx.fillStyle= '#ffffff';
-                var s= 8;
-                var pos;
-
-                for(i=0; i<this.particles.length; i++) {
-                    pos= this.pathMeasure.positionOnTime( (this.particles[i]+time)*(1+(i%3)*.33) );
-                    ctx.beginPath();
-                    ctx.arc( pos.x, pos.y, s/2, 0, Math.PI*2, false );
-                    ctx.fill();
+                if ( this.pathMeasure ) {
+                    var pos;
+                    for(i=0; i<this.particles.length; i++) {
+                        pos= this.pathMeasure.positionOnTime( (this.particles[i]+time)*(1+(i%3)*.33) );
+                        this.bolasImage.setSpriteIndex(i%8);
+                        this.bolasImage.paint( director, 0, pos.x-4, pos.y-4 );
+                    }
                 }
             }
 
         },
         contextEvent : function( event ) {
-            if ( event.source=='context' && event.event=='multiplier' ) {
+            if ( event.source=='brick' &&
+                (event.event=='selection' || event.event=='selectionoverflow' || event.event=='selection-cleared') ) {
+                this.setupPath();
             }
         },
         paintActorGL : function(director,time) {
@@ -1288,14 +1309,14 @@
 
             this.buttonImage= new CAAT.SpriteImage().initialize(
                     director.getImage('buttons'), 7,3 );
-            
+            /*
             if ( director.getRenderType()==='CSS' ) {
                 this.starsImage= new CAAT.SpriteImage().initialize(
                         director.getImage('stars'), 1,6 );
-            } else {
+            } else {*/
                 this.starsImage= new CAAT.SpriteImage().initialize(
                         director.getImage('stars'), 24,6 );
-            }
+            /*}*/
             this.numbersImage= new CAAT.SpriteImage().initialize(
                     director.getImage('numbers'), 1,10 );
             this.numbersImageSmall= new CAAT.SpriteImage().initialize(
@@ -1323,9 +1344,9 @@
             //////////////////////// animated background
             this.backgroundContainer= new HN.AnimatedBackground().
                     setBounds(0,0,dw,dh).
-                    setBackgroundImage( director.getImage('background') ).
-                    setInitialOffset( -director.getImage('background').height+2*dh ).
-                    setClip(true).
+                    setBackgroundImage( director.getImage('background-1') ).
+                    setInitialOffset( -director.getImage('background-1').height+dh ).
+//                    setClip(true).
                     setData(this.directorScene, this.context);
             this.directorScene.addChild( this.backgroundContainer );
             this.context.addContextListener(this.backgroundContainer);
@@ -1454,8 +1475,7 @@
 
             /////////////////////// initialize selection path
             /// create this one as the last actor so when gl active, no extra drawtris call needed.
-            this.selectionPath= new HN.SelectionPath().
-                    create().
+            this.selectionPath= new HN.SelectionPath(director).
                     setBounds(
                         this.bricksContainer.x,
                         this.bricksContainer.y,
@@ -1520,12 +1540,13 @@
                 setOutOfFrameTime();
 
             var sb;
+            /*
             if ( this.director.getRenderType()==='CSS' ) {
                 sb= new CAAT.AlphaBehavior().
                         setFrameTime(this.directorScene.time, 0).
                         setValues(1,0);
             } else {
-
+*/
                 sb= new CAAT.GenericBehavior().
                     setFrameTime(this.directorScene.time, 0).
                     setValues( 1, 0, null, null, function(value,target,actor) {
@@ -1533,8 +1554,8 @@
                                 actor.__imageIndex+(23-((23*value)>>0))*actor.backgroundImage.columns
                             ] );
                     });
-            }
-
+/*            }
+*/
             actor.__sb= sb;
             actor.addBehavior(sb);
 
@@ -1881,7 +1902,7 @@
                     this.director.audioPlay( 'sumamal' );
                     this.selectionOverflowEvent(event);
                 } else if ( event.event==='selection-cleared') {
-                    document.body.style.cursor = 'default';
+                    CAAT.setCursor('default');
                     this.director.audioPlay('12');
                     this.selectionClearedEvent(event);
                 } else if ( event.event==='rearranged' ) {

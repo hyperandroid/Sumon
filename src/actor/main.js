@@ -2,7 +2,7 @@ function __CAAT__loadingScene(director) {
 
     var scene= director.createScene();
 
-    var TIME= 3000;
+    var TIME= 5000;
     var time= new Date().getTime();
 
     var background= new CAAT.ActorContainer().
@@ -98,14 +98,17 @@ function __CAAT__loadingScene(director) {
                 if ( difftime>TIME ) {
                     difftime= TIME;
                 }
-                
-                setTimeout(function() {
-                    lading.setOutOfFrameTime();
-                    rueda.setOutOfFrameTime();
 
-                    __end_loading(director);
-                },
-                difftime );
+                scene.createTimer(
+                    scene.time,
+                    difftime,
+                    function() {
+                        lading.setOutOfFrameTime();
+                        rueda.setOutOfFrameTime();
+                        __end_loading(director);
+                    }
+                );
+
             } else {
                 __end_loading(director);
             }
@@ -124,7 +127,9 @@ function __end_loading(director) {
     director.setImagesCache(director.__next_images);
     delete director.__next_images;
 
-    var gardenScene= new HN.GardenScene().create(director, (director.getRenderType()==='CANVAS') ? 120 : 0);
+    var gardenScene= new HN.GardenScene().create(director, (director.getRenderType()==='CANVAS') ?
+        (( navigator.browser!=='iOS' )  ? 120 : 0) :
+        0);
     var gameScene= new HN.GameScene().create(director, HN.GameModes.respawn );
     gardenScene.gameScene= gameScene;
     gameScene.addGameListener( gardenScene );
@@ -140,12 +145,14 @@ function __end_loading(director) {
 
 function __Hypernumbers_init()   {
 
-    //var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
+    /* css
+    var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
+    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
+*/
 
     var director = new CAAT.Director().initialize(700,500).setClear(false);
     document.getElementById('game').appendChild(director.canvas);
 
-//    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
 
 
     HN.director= director;
@@ -153,7 +160,7 @@ function __Hypernumbers_init()   {
     new CAAT.ImagePreloader().loadImages(
         [
             {id:'stars',    url:'res/img/stars.png'},
-            {id:'splash',   url:'res/splash/splash.jpg'},
+            {id:'splash',   url:'res/splash/splash.png'},
             {id:'lading',   url:'res/splash/lading.png'},
             {id:'rueda',    url:'res/splash/rueda.png'},
             {id:'start',    url:'res/splash/start.png'}
@@ -161,10 +168,11 @@ function __Hypernumbers_init()   {
         function( counter, images ) {
 
             if ( counter==images.length ) {
-
+/*
                 if ( director.getRenderType()!='CSS') {
                     images[0].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,24,images[0].image);
                 }
+*/
                 director.setImagesCache(images);
                 var scene_loading= __CAAT__loadingScene(director);
 
@@ -177,7 +185,8 @@ function __Hypernumbers_init()   {
                         {id:'numbers',          url:'res/img/numbers.png'},
                         {id:'numberssmall',     url:'res/img/numbers_s.png'},
                         {id:'madewith',         url:'res/img/madewith.png'},
-                        {id:'background',       url:'res/img/fondo.jpg'},
+                        {id:'background-1',     url:'res/img/fondo1.png'},
+                        {id:'background-2',     url:'res/img/fondo2.png'},
                         {id:'background_op',    url:'res/img/gameover.png'},
                         {id:'cloud0',           url:'res/img/nube1.png'},
                         {id:'cloud1',           url:'res/img/nube2.png'},
@@ -211,19 +220,27 @@ function __Hypernumbers_init()   {
                         {id:'mode-text',        url:'res/img/textos.png'},
                         {id:'rclock-bg',        url:'res/img/rclock_bg.png'},
                         {id:'rclock-tick',      url:'res/img/rclock_tick.png'},
-                        {id:'rclock-arrow',     url:'res/img/rclock_arrow.png'}
+                        {id:'rclock-arrow',     url:'res/img/rclock_arrow.png'},
+                        {id:'bolas',            url:'res/img/bolas.png'}
                     ],
 
                     function( counter, images ) {
 
                         if ( counter==images.length ) {
 
+/*
+var im= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(0,1,32,images[0].image);
+var str= "image/png";
+var strData= im.toDataURL(str);
+document.location.href= strData.replace( str, "image/octet-stream" );
+
+/*
                             if ( director.getRenderType()!=='CSS') {
                                 images[0].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(0,1,32,images[0].image);
                                 images[1].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,24,images[1].image);
                                 images[40].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,16,images[40].image);
                             }
-
+*/
                             director.__next_images= images;
 
                             director.

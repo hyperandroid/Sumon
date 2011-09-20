@@ -588,13 +588,13 @@
                 me.prepareSound();
             };
 
-            var imgb= director.getImage('background');
+            var imgb= director.getImage('background-2');
             this.directorScene.addChild(
                     new CAAT.Actor().
                             setBounds(0,0,dw,dh).
                             setBackgroundImage(imgb).
-                            setBackgroundImageOffset( 0, -imgb.height+dh ).
-                            setClip(true)
+                            setBackgroundImageOffset( 0, -imgb.height+dh )//.
+//                            setClip(true)
                     );
 
             ///////////// some clouds
@@ -611,11 +611,12 @@
             var ovniImage= new CAAT.SpriteImage().initialize( director.getImage('ovni'), 1, 2 );
 
             var smokeImage;
-            if ( director.getRenderType()!='CSS' ) {
+            /*
+            if ( director.getRenderType()!='CSS' ) {*/
                 smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 32,1 );
-            } else {
+            /*} else {
                 smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 1,1 );
-            }
+            }*/
 
             var TT=1000;
             if ( director.glEnabled ) {
@@ -676,12 +677,13 @@
                                                                         setFrameTime(time, this.smokeTime).
                                                                         setValues( .5,1.5, .5,1.5 )
                                                             );
+                                                    /*
                                                     if ( director.getRenderType()==='CSS' ) {
                                                         humo.addBehavior(
                                                             new CAAT.AlphaBehavior().
                                                                     setFrameTime(time, this.smokeTime).
                                                                     setValues( 1, 0 ));
-                                                    } else {
+                                                    } else {*/
                                                         humo.addBehavior(
                                                             new CAAT.GenericBehavior().
                                                                     setFrameTime(time, this.smokeTime).
@@ -689,8 +691,8 @@
                                                                         actor.setAnimationImageIndex( [31-((value*31)>>0)] );
                                                                     })
                                                         );
-                                                    }
-
+                                                    /*}
+*/
                                                     ovnitrail.addChild(humo);
 
                                                     this.prevTime= time;
@@ -794,8 +796,8 @@
 
             var music= new CAAT.Actor().
                     setAsButton( ci.getRef(),0,1,0,0, function(button) {
-                        director.audioManager.setMusicEnabled( !director.audioManager.isMusicEnabled() );
-                        if ( director.audioManager.isMusicEnabled() ) {
+                        director.setMusicEnabled( !director.audioManager.isMusicEnabled() );
+                        if ( director.isMusicEnabled() ) {
                             button.setButtonImageIndex(0,1,0,0);
                         } else {
                             button.setButtonImageIndex(2,2,2,2);
@@ -807,8 +809,8 @@
 
             var sound= new CAAT.Actor().
                     setAsButton( ci.getRef(),3,4,3,3, function(button) {
-                        director.audioManager.setSoundEffectsEnabled( !director.audioManager.isSoundEffectsEnabled() );
-                        if ( director.audioManager.isSoundEffectsEnabled() ) {
+                        director.setSoundEffectsEnabled( !director.audioManager.isSoundEffectsEnabled() );
+                        if ( director.isSoundEffectsEnabled() ) {
                                 button.setButtonImageIndex(3,4,3,3);
                         } else {
                             button.setButtonImageIndex(5,5,5,5);
