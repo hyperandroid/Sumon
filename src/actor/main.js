@@ -2,7 +2,7 @@ function __CAAT__loadingScene(director) {
 
     var scene= director.createScene();
 
-    var TIME= 5000;
+    var TIME= 0; //5000;
     var time= new Date().getTime();
 
     var background= new CAAT.ActorContainer().
@@ -145,7 +145,7 @@ function __end_loading(director) {
 
 function __Hypernumbers_init()   {
 
-    /* css
+/*
     var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
     director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
 */
@@ -221,7 +221,9 @@ function __Hypernumbers_init()   {
                         {id:'rclock-bg',        url:'res/img/rclock_bg.png'},
                         {id:'rclock-tick',      url:'res/img/rclock_tick.png'},
                         {id:'rclock-arrow',     url:'res/img/rclock_arrow.png'},
-                        {id:'bolas',            url:'res/img/bolas.png'}
+                        {id:'bolas',            url:'res/img/bolas.png'},
+                        {id:'info',             url:'res/big/about.png'},
+                        {id:'howto',            url:'res/big/tutorial.png'}
                     ],
 
                     function( counter, images ) {
@@ -243,7 +245,18 @@ document.location.href= strData.replace( str, "image/octet-stream" );
 */
                             director.__next_images= images;
 
-                            director.
+                            if ( navigator.browser==='iOS' ) {
+                                director.
+                                    addAudio("01",              "res/sound/01.mp3").
+                                    addAudio("10",              "res/sound/10.mp3").
+                                    addAudio("11",              "res/sound/11.mp3").
+                                    addAudio("12",              "res/sound/12.mp3").
+                                    addAudio("sumamal",         "res/sound/suma_mal.mp3").
+                                    addAudio("mostrarpanel",    "res/sound/mostrarpanel.mp3").
+                                    addAudio("deseleccionar",   "res/sound/deseleccionar.mp3").
+                                    addAudio("music",           "res/sound/music.mp3");
+                            } else {
+                                director.
                                     addAudio('01',              document.getElementById('audio_01')).
                                     addAudio('10',              document.getElementById('audio_10')).
                                     addAudio('11',              document.getElementById('audio_11')).
@@ -252,7 +265,7 @@ document.location.href= strData.replace( str, "image/octet-stream" );
                                     addAudio('mostrarpanel',    document.getElementById('mostrarpanel')).
                                     addAudio('deseleccionar',   document.getElementById('deseleccionar')).
                                     addAudio('music',           document.getElementById('music'));
-
+                            }
 
                         }
 
@@ -266,41 +279,6 @@ document.location.href= strData.replace( str, "image/octet-stream" );
     );
 
     CAAT.loop(60);
-}
-
-
-function __enterCSS( domElement, x0,y0, x1,y1, scene ) {
-
-    domElement.style['display']='block';
-    domElement.style['top']=y0+'px';
-    domElement.style['left']=x0+'px';
-
-    var enterBehavior= new CAAT.GenericBehavior().
-            setFrameTime( scene.time, 1000 ).
-            setInterpolator(
-                new CAAT.Interpolator().createBounceOutInterpolator(false)
-            ).
-            setValues(
-                x0,
-                x1,
-                domElement,
-                null,
-                function( currentValue, target ) {
-                    target.style['left']= currentValue+'px';
-                }
-            );
-
-    scene.createTimer(
-            scene.time,
-            1000,
-            function( time, ttime, timertask ) {
-                domElement.style['top']=x1+'px';
-                domElement.style['left']=y1+'px';
-            },
-            function( time,ttime,timertask) {
-                enterBehavior.apply(time);
-            },
-            null);
 }
 
 window.addEventListener('load', __Hypernumbers_init, false);

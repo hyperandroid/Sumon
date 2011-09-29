@@ -24,6 +24,12 @@
         return this;
     };
 
+    HN.BrickActor.status= {
+        REGULAR:    0,      // en tablero.
+        FALLING:    1,      // cayendo. (rearrange)
+        CLEARED:    2       // eliminado, no disponible (cayendo y eliminado)
+    }
+
     HN.BrickActor.prototype= {
 
         timeOver:       250,
@@ -35,7 +41,7 @@
 
         brick:          null,
 
-        status:         0,  // regular state, 1: fallind, 2: cleared.
+        status:         0,  // 0: regular state, 1: falling, 2: cleared.
 
         ab:             null,
         sb:             null,
@@ -65,8 +71,17 @@
 
             return this;
         },
+        /**
+         * Falling es que el elemento ha sido quitado del tablero.
+         * @param fall
+         */
+            /*
         setFalling : function(fall) {
             this.falling= fall;
+            return this;
+        },*/
+        setStatus : function(st) {
+            this.status= st;
             return this;
         },
         mouseEnter : function(mouseEvent) {
@@ -160,7 +175,8 @@
          * game just started.
          */
         set: function() {
-            this.falling= false;
+//            this.falling= false;
+            this.status= HN.BrickActor.status.REGULAR;
             this.enableEvents(true);
             this.reset();
         },
@@ -176,7 +192,8 @@
                 setFrameTime(this.time,Number.MAX_VALUE).
                 resetTransform().
                 setAlpha(1).
-                setFalling(true)
+                //setFalling(true)
+                setStatus(HN.BrickActor.status.FALLING)
                 ;
 
             this.pb.
@@ -194,7 +211,8 @@
                         },
                         // re-enable events on actor after moving to rearrange position.
                         behaviorExpired : function(behavior, time, actor) {
-                            actor.setFalling(false);
+                            //actor.setFalling(false);
+                            actor.setStatus(HN.BrickActor.status.REGULAR);
                         }
                     }
                 );
@@ -206,7 +224,11 @@
          * @param y
          */
         rearrange: function(x,y) {
-            this.setFalling(true);
+            if ( this.status===HN.BrickActor.status.CLEARED ) {
+                return;
+            }
+//            this.setFalling(true);
+            this.setStatus(HN.BrickActor.status.FALLING);
             this.pb.
                 emptyListenerList().
                 setFrameTime(this.time + this.brick.column*50, this.timeRearrange).
@@ -221,7 +243,8 @@
                     },
                     // re-enable events on actor after moving to rearrange position.
                     behaviorExpired : function(behavior, time, actor) {
-                        actor.setFalling(false);
+//                        actor.setFalling(false);
+                        actor.setStatus(HN.BrickActor.status.REGULAR);
                     }
                 });
         },
@@ -231,7 +254,8 @@
          */
         selectionOverflow : function() {
             // ladrillos que estn cayendo, no hacen el path de error.
-            if ( !this.falling ) {
+            //if ( !this.falling ) {
+            if ( this.status===HN.BrickActor.status.REGULAR ) {
                 var signo= Math.random()<.5 ? 1: -1;
 
                 this.pb.
@@ -253,6 +277,8 @@
          * @param maxHeight
          */
         selectionCleared : function(scene, maxHeight) {
+
+            this.setStatus(HN.BrickActor.status.CLEARED);
 
             var signo= Math.random()<.5 ? 1 : -1;
             var offset= 50+Math.random()*30;
@@ -334,15 +360,7 @@
 
             var itick= director.getImage('rclock-tick');
             var itickci;
-/*
-            if ( director.getRenderType()==='CSS' ) {
-                itickci= new CAAT.SpriteImage().initialize( itick, 1, 1 );
-            } else {
-            */
-                itickci= new CAAT.SpriteImage().initialize( itick, 16, 1 );
-            /*
-            }
-*/
+            itickci= new CAAT.SpriteImage().initialize( itick, 16, 1 );
             var ibg= director.getImage('rclock-bg');
             var iarrow= director.getImage('rclock-arrow');
             var me= this;
@@ -374,14 +392,6 @@
                             setFrameTime( i*this.respawnTime/NTicks, 300 ).
                             setValues( 1,3, 1,3 )
                     );
-/*
-                if ( director.getRenderType()==='CSS' ) {
-                    cb.addBehavior(
-                            new CAAT.AlphaBehavior().
-                                setFrameTime( i*this.respawnTime/NTicks, 300 ).
-                                setValues( 1, 0 ) );
-                } else {
-                */
                     cb.addBehavior(
                         new CAAT.GenericBehavior().
                             setFrameTime( i*this.respawnTime/NTicks, 300 ).
@@ -389,10 +399,6 @@
                                 actor.setAnimationImageIndex( [15-((value*15)>>0)] );
                             })
                     );
-/*
-                }
-*/
-
                 tick.addBehavior(cb);
             }
 
@@ -423,10 +429,10 @@
         resetTimer : function() {
             var NTicks= this.ticks.length;
             for( var i=0; i<NTicks; i++ ) {
-                this.ticks[i].resetTransform().setAlpha(1);
+                this.ticks[i].resetTransform().setAnimationImageIndex([0]);
                 this.ticks[i].behaviorList[0].setFrameTime(this.scene.time, this.respawnTime);
-                this.ticks[i].behaviorList[0].behaviors[0].setFrameTime( i*this.respawnTime/NTicks, (this.respawnTime/NTicks)>>0 );
-                this.ticks[i].behaviorList[0].behaviors[1].setFrameTime( i*this.respawnTime/NTicks, (this.respawnTime/NTicks)>>0 );
+                this.ticks[i].behaviorList[0].behaviors[0].setFrameTime( i*this.respawnTime/NTicks, 300 );
+                this.ticks[i].behaviorList[0].behaviors[1].setFrameTime( i*this.respawnTime/NTicks, 300 );
             }
 
             this.arrow.behaviorList[0].setFrameTime(this.scene.time, this.respawnTime);
@@ -512,6 +518,9 @@
                     me.numbers= [];
 
                     var snumber= me.guessNumber.toString();
+                    if ( snumber.length===1 ) {
+                        snumber='0'+snumber;
+                    }
                     me.offsetX= 10;
                     me.offsetY= (me.height - me.numbersImage.singleHeight)/2;
 
@@ -524,10 +533,6 @@
                         this.actors[i].setVisible(true);
                     }
 
-                    if ( snumber.length==1 ) {
-                        this.actors[1].setAnimationImageIndex([-1]);
-                        this.actors[1].setVisible(false);
-                    }
 
 
                     if ( null==me.tmpnumbers ) {
@@ -736,7 +741,7 @@
             if ( null!=this.context && 0!=this.context.selectedList.length ) {
 
                 var i;
-                //this.setupPath();
+                this.setupPath();
 
 
                 var ctx= director.ctx;
@@ -770,10 +775,12 @@
 
         },
         contextEvent : function( event ) {
+            /*
             if ( event.source=='brick' &&
                 (event.event=='selection' || event.event=='selectionoverflow' || event.event=='selection-cleared') ) {
                 this.setupPath();
             }
+            */
         },
         paintActorGL : function(director,time) {
 
@@ -1079,23 +1086,22 @@
 (function() {
     HN.LevelActor= function() {
         HN.LevelActor.superclass.constructor.call(this);
+        this.numbers= [];
         return this;
     };
 
     HN.LevelActor.prototype= {
         font:       null,
-        level:      0,
         numbers:    null,
 
         initialize : function(font, background) {
             this.font= font;
 
-
             for( var i=0; i<2; i++ ) {
                 var digit= new CAAT.Actor().
-                        setBackgroundImage(font, true).
+                        setBackgroundImage(font.getRef(), true).
                         setVisible(false);
-
+                this.numbers.push(digit);
                 this.addChild(digit);
             }
 
@@ -1107,22 +1113,22 @@
             if ( event.source=='context' ) {
                 if ( event.event=='levelchange') {
                     this.level=   event.params;
-                    this.numbers= [];
 
                     var snumber= this.level.toString();
-                    var i;
+                    var i, number;
+                    var correction= this.font.singleWidth*.8;
 
                     for( i=0; i<snumber.length; i++ ) {
-                        this.numbers[i]= parseInt(snumber.charAt(i));
-                        this.childrenList[i].setAnimationImageIndex([this.numbers[i]]);
-                        this.childrenList[i].setLocation(
-                                (this.width - this.numbers.length*(this.font.singleWidth))/2,
-                                20 ).
-                                setVisible(true);
+                        number= parseInt(snumber.charAt(i));
+                        this.numbers[i].
+                            setSpriteIndex(number).
+                            setLocation(
+                                (this.width - snumber.length*correction)/2 + i*correction, 20 ).
+                            setVisible(true);
                     }
 
-                    for( ;i<this.childrenList.length; i++ ) {
-                        this.childrenList[i].setVisible(false);
+                    for( ;i<this.numbers.length; i++ ) {
+                        this.numbers[i].setVisible(false);
                     }
 
                 }

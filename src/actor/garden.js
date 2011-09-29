@@ -727,7 +727,7 @@
             var scores= new CAAT.Actor().
                     setAsButton( this.buttonImage.getRef(), 18,19,20,18, function() {
                         director.audioPlay('11');
-                        __enterCSS( document.getElementById('scores'), 700,0, 0,0, me.directorScene);
+                        //__enterCSS( document.getElementById('scores'), 700,0, 0,0, me.directorScene);
                     }).
                     setBounds( dw-bw-10, dh-bh-10, bw, bh );
 
@@ -735,19 +735,90 @@
             var ihw= info_howto_ci.singleWidth;
             var ihh= info_howto_ci.singleHeight;
 
+            var _info= new CAAT.Actor().
+                setBackgroundImage(
+                    new CAAT.SpriteImage().
+                        initialize( director.getImage('info'),1,1 ),
+                    true
+                ).
+                setOutOfFrameTime().
+                setAlpha(.9);
+            _info.mouseClick= function( e ) {
+                _info.emptyBehaviorList().
+                    setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
+                    addBehavior(
+                        new CAAT.PathBehavior().
+                            setFrameTime( me.directorScene.time, 1000 ).
+                            setValues( new CAAT.Path().setLinear( _info.x,0,-700,0 ) ).
+                            setInterpolator(new CAAT.Interpolator().createBounceOutInterpolator(false) ).
+                            addListener( {
+                                behaviorExpired : function(behavior, time, actor) {
+                                    _info.setOutOfFrameTime();
+                                }
+                            })
+                    );
+            };
+
             var info= new CAAT.Actor().
                     setAsButton(info_howto_ci.getRef(), 0,1,2,0,
                         function(button) {
                             director.audioPlay('11');
-                            __enterCSS( document.getElementById('about'), -700,0, 0,0, me.directorScene );
+                            //__enterCSS( document.getElementById('about'), -700,0, 0,0, me.directorScene );
+                            _info.emptyBehaviorList().
+                                setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
+                                addBehavior(
+                                    new CAAT.PathBehavior().
+                                        setFrameTime( me.directorScene.time, 1000 ).
+                                        setValues(
+                                            new CAAT.Path().setLinear( -700,0,0,0 )
+                                        ).
+                                        setInterpolator(
+                                            new CAAT.Interpolator().createBounceOutInterpolator(false)
+                                        )
+                                )
                         }).
                     setBounds( 10, dh-10-ihh, ihw, ihh );
 
+
+            var _howto= new CAAT.Actor().
+                setBackgroundImage(
+                    new CAAT.SpriteImage().
+                        initialize( director.getImage('howto'),1,1 ),
+                    true
+                ).
+                setOutOfFrameTime().
+                setAlpha(.9);
+            _howto.mouseClick= function( e ) {
+                _howto.emptyBehaviorList().
+                    setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
+                    addBehavior(
+                        new CAAT.PathBehavior().
+                            setFrameTime( me.directorScene.time, 1000 ).
+                            setValues( new CAAT.Path().setLinear( _howto.x,0,700,0 ) ).
+                            setInterpolator(new CAAT.Interpolator().createBounceOutInterpolator(false) ).
+                            addListener( {
+                                behaviorExpired : function(behavior, time, actor) {
+                                    _howto.setOutOfFrameTime();
+                                }
+                            })
+                    );
+            };
             var howto= new CAAT.Actor().
                     setAsButton(info_howto_ci.getRef(), 3,4,5,3,
                         function() {
                             director.audioPlay('11');
-                            __enterCSS( document.getElementById('tutorial'), 700,0, 0,0, me.directorScene );
+                            _howto.emptyBehaviorList().
+                                setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
+                                addBehavior(
+                                    new CAAT.PathBehavior().
+                                        setFrameTime( me.directorScene.time, 1000 ).
+                                        setValues(
+                                            new CAAT.Path().setLinear( 700,0,0,0 )
+                                        ).
+                                        setInterpolator(
+                                            new CAAT.Interpolator().createBounceOutInterpolator(false)
+                                        )
+                                )
                         }).
                     setBounds( 10, dh-10-ihh-ihh-5, ihw, ihh );
 
@@ -784,6 +855,8 @@
                     setLocation( dw-90, 0 );
             this.directorScene.addChild(madeWith);
 
+            this.directorScene.addChild(_info);
+            this.directorScene.addChild(_howto);
 
             this.soundControls(director);
 
