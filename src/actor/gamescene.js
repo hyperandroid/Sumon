@@ -955,6 +955,7 @@
         scene:                      null,
         altitude:                   .2,
         altitudeMeterByIncrement:   2,
+        currentAltitude:            0,
         initialOffset:              0,
         currentOffset:              0,
 
@@ -985,6 +986,8 @@
                                             setInterpolator( new CAAT.Interpolator().
                                                 createBounceOutInterpolator(false) )
                                     );
+
+                            me.currentAltitude= me.initialOffset;
                         }
                     } else if ( event.params==HN.Context.prototype.ST_LEVEL_RESULT ) {
                         this.timer.cancel();
@@ -1000,10 +1003,12 @@
                 me.scene.time,
                 200,
                 function timeout(sceneTime, time, timerTask) {
-                    me.setBackgroundImageOffset( 0, me.backgroundImage.offsetY + me.altitude );
-                    if ( me.backgroundImage.offsetY>0 ) {
-                        me.setBackgroundImageOffset( 0, 0 );
+
+                    me.currentAltitude+= me.altitude;
+                    if ( me.currentAltitude>0 ) {
+                        me.currentAltitude=0;
                     }
+                    me.setBackgroundImageOffset( 0, me.currentAltitude>>0 );
                     timerTask.reset( me.scene.time );
                     me.context.incrementAltitude( me.altitudeMeterByIncrement );
                 },
@@ -1013,6 +1018,7 @@
         setInitialOffset : function( offset ) {
             this.setBackgroundImageOffset( 0, offset );
             this.initialOffset= offset;
+            this.currentAltitude= offset;
             return this;
         },
         caer : function(time) {
@@ -1352,7 +1358,6 @@
                     setBounds(0,0,dw,dh).
                     setBackgroundImage( director.getImage('background-1') ).
                     setInitialOffset( -director.getImage('background-1').height+dh ).
-//                    setClip(true).
                     setData(this.directorScene, this.context);
             this.directorScene.addChild( this.backgroundContainer );
             this.context.addContextListener(this.backgroundContainer);
