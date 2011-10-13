@@ -3445,6 +3445,100 @@ var cp1= proxy(
                     " z:" + String(Math.round(Math.floor(this.z*10))/10);
 		}
 	};
+})();(function() {
+
+    CAAT.Debug= function() {
+        return this;
+    };
+
+    CAAT.Debug.prototype= {
+
+        width:  0,
+        height: 0,
+        canvas: null,
+        ctx:    null,
+
+        SCALE:  50,
+
+        setScale : function(s) {
+            this.scale= s;
+            return this;
+        },
+
+        initialize: function(w,h) {
+            this.width= w;
+            this.height= h;
+
+            this.canvas= document.createElement('canvas');
+            this.canvas.width= w;
+            this.canvas.height=h;
+            this.ctx= this.canvas.getContext('2d');
+
+            this.ctx.fillStyle= 'black';
+            this.ctx.fillRect(0,0,this.width,this.height);
+
+            var dom= document.getElementById('caat-debug');
+            if ( null===dom ) {
+                document.body.appendChild( this.canvas );
+            } else {
+                dom.appendChild( this.canvas );
+            }
+
+            return this;
+        },
+
+        debugInfo : function( total, active ) {
+            this.size_total= total;
+            this.size_active= active;
+            this.paint();
+        },
+
+        paint : function() {
+            var ctx= this.ctx;
+            var t=0;
+
+            ctx.drawImage(
+                this.canvas,
+                1, 0, this.width-1, this.height,
+                0, 0, this.width-1, this.height );
+
+            ctx.strokeStyle= 'black';
+            ctx.beginPath();
+            ctx.moveTo( this.width-.5, 0 );
+            ctx.lineTo( this.width-.5, this.height );
+            ctx.stroke();
+
+            ctx.strokeStyle= CAAT.FRAME_TIME<16 ? 'green' : CAAT.FRAME_TIME<25 ? 'yellow' : 'red';
+            ctx.beginPath();
+            ctx.moveTo( this.width-.5, this.height );
+            ctx.lineTo( this.width-.5, this.height-(CAAT.FRAME_TIME*this.height/this.SCALE) );
+            ctx.stroke();
+
+            ctx.strokeStyle= 'rgba(0,255,0,.8)';
+            ctx.beginPath();
+
+            t= this.height-((15/this.SCALE*this.height)>>0)-.5;
+            ctx.moveTo( 0, t );
+            ctx.lineTo( this.width, t );
+            ctx.stroke();
+
+            ctx.strokeStyle= 'rgba(255,255,0,.8)';
+            ctx.beginPath();
+            t= this.height-((25/this.SCALE*this.height)>>0)-.5;
+            ctx.moveTo( 0, t );
+            ctx.lineTo( this.width, t );
+            ctx.stroke();
+
+            ctx.fillStyle='red';
+            ctx.fillRect( 0,0,120,15);
+            ctx.fillStyle='white';
+            ctx.fillText(
+                    '  Total: '+this.size_total+
+                    '  Active: '+this.size_active,
+                    0,
+                    12 );
+        }
+    };
 })();/**
  * @author  Hyperandroid  ||  http://hyperandroid.com/
  *
@@ -3617,7 +3711,7 @@ var cp1= proxy(
 
                 image.setOwner(this);
                 this.backgroundImage= image;
-                if ( adjust_size_to_image ) {
+                if ( typeof adjust_size_to_image==='undefined' || adjust_size_to_image ) {
                     this.width= image.singleWidth;
                     this.height= image.singleHeight;
                 }
@@ -4221,6 +4315,14 @@ var cp1= proxy(
             return this;
 
         },
+        getBehavior : function(id)  {
+            for( var n=0; n<this.behaviorList.length; n++ ) {
+                if ( this.behaviorList[n].id===id) {
+                    return this.behaviorList[n];
+                }
+            }
+            return null;
+        },
         /**
          * Set discardable property. If an actor is discardable, upon expiration will be removed from
          * scene graph and hence deleted.
@@ -4406,8 +4508,8 @@ var cp1= proxy(
                     var vy = mouseEvent.screenPoint.y - this.screeny;
                     this.setRotation(-Math.atan2(vx, vy) + this.ara);
                 } else {
-                    this.x += mouseEvent.point.x - this.ax;
-                    this.y += mouseEvent.point.y - this.ay;
+                    this.x += (mouseEvent.point.x - this.ax);
+                    this.y += (mouseEvent.point.y - this.ay);
                     this.ax = mouseEvent.point.x;
                     this.ay = mouseEvent.point.y;
                 }
@@ -4837,6 +4939,8 @@ var cp1= proxy(
                 var enabled=    true;
                 var me=         this;
 
+                me.dragging=   false;
+
                 button.enabled= true;
                 button.setEnabled= function( enabled ) {
                     this.enabled= enabled;
@@ -4852,7 +4956,11 @@ var cp1= proxy(
                 button.setSpriteIndex( iNormal );
 
                 button.mouseEnter= function(mouseEvent) {
-                    this.setSpriteIndex( iOver );
+                    if ( this.dragging ) {
+                        this.setSpriteIndex( iPress );
+                    } else {
+                        this.setSpriteIndex( iOver );
+                    }
                     CAAT.setCursor('pointer');
                 };
 
@@ -4867,6 +4975,7 @@ var cp1= proxy(
 
                 button.mouseUp= function(mouseEvent) {
                     this.setSpriteIndex( iNormal );
+                    this.dragging= false;
                 };
 
                 button.mouseClick= function(mouseEvent) {
@@ -4875,11 +4984,16 @@ var cp1= proxy(
                     }
                 };
 
+                button.mouseDrag= function(mouseEvent)  {
+                    this.dragging= true;
+                };
+
                 button.setButtonImageIndex= function(_normal, _over, _press, _disabled ) {
                     iNormal=    _normal;
                     iOver=      _over;
                     iPress=     _press;
                     iDisabled=  _disabled;
+                    this.setSpriteIndex( iNormal );
                     return this;
                 };
             })(this,buttonImage, iNormal, iOver, iPress, iDisabled, fn);
@@ -5053,7 +5167,6 @@ var cp1= proxy(
             }
 
             var i,l;
-            var notActive= [];
 
             /**
              * Incluir los actores pendientes.
@@ -5062,14 +5175,10 @@ var cp1= proxy(
             for( i=0; i<this.pendingChildrenList.length; i++ ) {
                 var child= this.pendingChildrenList[i];
                 this.addChild(child);
-/*
-                child.parent =  this;
-                this.childrenList.push(child);
-                */
             }
+
             this.pendingChildrenList= [];
             var markDelete= [];
-
 
             var cl= this.childrenList;
             this.activeChildren= null;
@@ -5100,7 +5209,7 @@ var cp1= proxy(
             }
 
             for( i=0, l=markDelete.length; i<l; i++ ) {
-                markDelete.shift().destroy(time);
+                markDelete[i].destroy(time);
             }
 
             return true;
@@ -6166,10 +6275,58 @@ var cp1= proxy(
 
         shape:          0,      // shape type. One of the constant SHAPE_* values
         compositeOp:    null,   // a valid canvas rendering context string describing compositeOps.
+        lineWidth:      1,
+        lineCap:        null,
+        lineJoin:       null,
+        miterLimit:     null,
 
         SHAPE_CIRCLE:   0,      // Constants to describe different shapes.
         SHAPE_RECTANGLE:1,
 
+        /**
+         * 
+         * @param l {number>0}
+         */
+        setLineWidth : function(l)  {
+            this.lineWidth= l;
+            return this;
+        },
+        /**
+         *
+         * @param lc {string{butt|round|square}}
+         */
+        setLineCap : function(lc)   {
+            this.lineCap= lc;
+            return this;
+        },
+        /**
+         *
+         * @param lj {string{bevel|round|miter}}
+         */
+        setLineJoin : function(lj)  {
+            this.lineJoin= lj;
+            return this;
+        },
+        /**
+         *
+         * @param ml {integer>0}
+         */
+        setMiterLimit : function(ml)    {
+            this.miterLimit= ml;
+            return this;
+        },
+        getLineCap : function() {
+            return this.lineCap;
+        },
+        getLineJoin : function()    {
+            return this.lineJoin;
+        },
+        getMiterLimit : function()  {
+            return this.miterLimit;
+        },
+        getLineWidth : function()   {
+            return this.lineWidth;
+        },
         /**
          * Sets shape type.
          * No check for parameter validity is performed.
@@ -6211,6 +6368,8 @@ var cp1= proxy(
         paintCircle : function(director,time) {
             var ctx= director.crc;
 
+            ctx.lineWidth= this.lineWidth;
+
             ctx.globalCompositeOperation= this.compositeOp;
             if ( null!==this.fillStyle ) {
                 ctx.fillStyle= this.fillStyle;
@@ -6236,6 +6395,18 @@ var cp1= proxy(
          */
         paintRectangle : function(director,time) {
             var ctx= director.crc;
+
+            ctx.lineWidth= this.lineWidth;
+
+            if ( this.lineCap ) {
+                ctx.lineCap= this.lineCap;
+            }
+            if ( this.lineJoin )    {
+                ctx.lineJoin= this.lineJoin;
+            }
+            if ( this.miterLimit )  {
+                ctx.miterLimit= this.miterLimit;
+            }
 
             ctx.globalCompositeOperation= this.compositeOp;
             if ( null!==this.fillStyle ) {
@@ -6277,7 +6448,55 @@ var cp1= proxy(
         minRadius:      0,
         initialAngle:   0,
         compositeOp:    null,
+        lineWidth:      1,
+        lineCap:        null,
+        lineJoin:       null,
+        miterLimit:     null,
 
+        /**
+         *
+         * @param l {number>0}
+         */
+        setLineWidth : function(l)  {
+            this.lineWidth= l;
+            return this;
+        },
+        /**
+         *
+         * @param lc {string{butt|round|square}}
+         */
+        setLineCap : function(lc)   {
+            this.lineCap= lc;
+            return this;
+        },
+        /**
+         *
+         * @param lj {string{bevel|round|miter}}
+         */
+        setLineJoin : function(lj)  {
+            this.lineJoin= lj;
+            return this;
+        },
+        /**
+         *
+         * @param ml {integer>0}
+         */
+        setMiterLimit : function(ml)    {
+            this.miterLimit= ml;
+            return this;
+        },
+        getLineCap : function() {
+            return this.lineCap;
+        },
+        getLineJoin : function()    {
+            return this.lineJoin;
+        },
+        getMiterLimit : function()  {
+            return this.miterLimit;
+        },
+        getLineWidth : function()   {
+            return this.lineWidth;
+        },
         /**
          * Sets whether the star will be color filled.
          * @param filled {boolean}
@@ -6346,6 +6565,17 @@ var cp1= proxy(
             var r2=         this.minRadius;
             var ix=         centerX + r1*Math.cos(this.initialAngle);
             var iy=         centerY + r1*Math.sin(this.initialAngle);
+
+            ctx.lineWidth= this.lineWidth;
+            if ( this.lineCap ) {
+                ctx.lineCap= this.lineCap;
+            }
+            if ( this.lineJoin )    {
+                ctx.lineJoin= this.lineJoin;
+            }
+            if ( this.miterLimit )  {
+                ctx.miterLimit= this.miterLimit;
+            }
 
             ctx.globalCompositeOperation= this.compositeOp;
 
@@ -7220,6 +7450,12 @@ var cp1= proxy(
         RESIZE_PROPORTIONAL:16,
         resize:             1,
 
+        checkDebug : function() {
+            if ( CAAT.DEBUG ) {
+                var dd= new CAAT.Debug().initialize( this.width, 60 );
+                this.debugInfo= dd.debugInfo.bind(dd);
+            }
+        },
         getRenderType : function() {
             return this.glEnabled ? 'WEBGL' : 'CANVAS';
         },
@@ -7327,6 +7563,8 @@ var cp1= proxy(
             this.transitionScene.addChildImmediately(transitionImageActor);
             this.transitionScene.setEaseListener(this);
 
+            this.checkDebug();
+
             return this;
         },
         glReset : function() {
@@ -7390,6 +7628,8 @@ var cp1= proxy(
                 this.gl.enable(this.gl.BLEND);
                 this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
                 this.glEnabled = true;
+
+                this.checkDebug();
             } else {
                 // fallback to non gl enabled canvas.
                 return this.initialize(width, height, canvas);
@@ -7541,6 +7781,9 @@ var cp1= proxy(
 
             this.animate(this,time);
 
+            this.size_total=0;
+            this.size_active=0;
+
             /**
              * draw director active scenes.
              */
@@ -7564,7 +7807,13 @@ var cp1= proxy(
                             c.onRenderEnd(tt);
                         }
 
-                        c.time += time;
+                        if ( !c.isPaused() ) {
+                            c.time += time;
+                        }
+
+                        this.size_total+= this.childrenList[i].size_total;
+                        this.size_active+= this.childrenList[i].size_active;
+
                     }
                 }
 
@@ -7597,7 +7846,13 @@ var cp1= proxy(
                             c.drawScreenBoundingBox(this, tt);
                         }
 
-                        c.time += time;
+                        if ( !c.isPaused() ) {
+                            c.time += time;
+                        }
+
+                        this.size_total+= this.childrenList[i].size_total;
+                        this.size_active+= this.childrenList[i].size_active;
+
                     }
                 }
             }
@@ -7615,14 +7870,9 @@ var cp1= proxy(
         animate : function(director, time) {
             this.setModelViewMatrix(this);
 
-            this.size_total=0;
-            this.size_active=0;
-
             for (var i = 0; i < this.childrenList.length; i++) {
                 var tt = this.childrenList[i].time - this.childrenList[i].start_time;
                 this.childrenList[i].animate(this, tt);
-                this.size_total+= this.childrenList[i].size_total;
-                this.size_active+= this.childrenList[i].size_active;
             }
 
             return this;
@@ -8205,63 +8455,10 @@ var cp1= proxy(
 
             this.render(delta);
 
-            if ( CAAT.DEBUG ) {
-
-                if ( !this.debugArea ) {
-                    this.debugArea= document.createElement('canvas');
-                    this.debugArea.width= this.width;
-                    this.debugArea.height= 40;
-                    this.debugctx= this.debugArea.getContext('2d');
-                    this.debugctx.fillStyle= 'black';
-                    this.debugctx.fillRect(0,0,this.width,40);
-                }
-
-                var ctx= this.debugctx;
-
-                ctx.globalCompositeOperation='src-over';
-
-                ctx.drawImage(
-                    this.debugArea,
-                    1, 0, this.width-1, 40,
-                    0, 0, this.width-1, 40);
-
-                ctx.strokeStyle= 'black';
-                ctx.beginPath();
-                ctx.moveTo( this.width-.5, 0 );
-                ctx.lineTo( this.width-.5, 40 );
-                ctx.stroke();
-
-                ctx.strokeStyle= CAAT.FRAME_TIME<16 ? 'green' : CAAT.FRAME_TIME<25 ? 'yellow' : 'red';
-                ctx.beginPath();
-                ctx.moveTo( this.width-.5, 40 );
-                ctx.lineTo( this.width-.5, 40-CAAT.FRAME_TIME );
-                ctx.stroke();
-
-                ctx.strokeStyle= 'rgba(0,255,0,.8)';
-                ctx.beginPath();
-                ctx.moveTo( 0,40-15.5 );
-                ctx.lineTo( this.width, 40-15.5 );
-                ctx.stroke();
-
-                ctx.strokeStyle= 'rgba(255,255,0,.8)';
-                ctx.beginPath();
-                ctx.moveTo( 0,40-25.5 );
-                ctx.lineTo( this.width, 40-25.5 );
-                ctx.stroke();
-
-
-                ctx.fillStyle='red';
-                ctx.fillRect( 0,0,120,15);
-                ctx.fillStyle='white';
-                ctx.fillText(
-                        '  Total: '+this.size_total+
-                        '  Active: '+this.size_active,
-                        0,
-                        12 );
-
-                this.ctx.drawImage( this.debugArea, 0, this.height-40 );
+            if ( this.debugInfo ) {
+                this.debugInfo(this.size_total, this.size_active);
             }
-
+            
             this.timeline = t;
 
             if (this.onRenderEnd) {
@@ -8367,12 +8564,25 @@ var cp1= proxy(
 
         /**
          * Enable canvas input events.
+         * Events sent to any CAAT.Actor instance will be as follows:
+         *
+         * MouseEnter
+         *  if (press)
+         *      MouseDown
+         *      if (drag)
+         *          MouseDrag
+         *  if (release)
+         *      MouseUp
+         *      MouseClicked
+         *  MouseExit
+         *
          */
         enableEvents : function() {
             CAAT.RegisterDirector(this);
 
             var canvas = this.canvas;
             var me = this;
+            var in_ = false;
 
             canvas.addEventListener('mouseup',
                     function(e) {
@@ -8381,7 +8591,7 @@ var cp1= proxy(
                         me.isMouseDown = false;
                         me.getCanvasCoord(me.mousePoint, e);
 
-                        var pos;
+                        var pos= null;
 
                         if (null !== me.lastSelectedActor) {
                             pos = me.lastSelectedActor.viewToModel(
@@ -8396,19 +8606,20 @@ var cp1= proxy(
                                             me.screenMousePoint));
                         }
 
-                        if (!me.dragging) {
-                            if (null !== me.lastSelectedActor) {
+                        if (null !== me.lastSelectedActor) {
+                            if (me.lastSelectedActor.contains(pos.x, pos.y)) {
                                 me.lastSelectedActor.mouseClick(
-                                        new CAAT.MouseEvent().init(
-                                                pos.x,
-                                                pos.y,
-                                                e,
-                                                me.lastSelectedActor,
-                                                me.screenMousePoint));
+                                    new CAAT.MouseEvent().init(
+                                        pos.x,
+                                        pos.y,
+                                        e,
+                                        me.lastSelectedActor,
+                                        me.screenMousePoint));
                             }
-                        } else {
-                            me.dragging = false;
                         }
+                        me.dragging = false;
+
+                        in_= false;
                     },
                     false);
 
@@ -8491,6 +8702,7 @@ var cp1= proxy(
                             me.lastSelectedActor = null;
                         }
                         me.isMouseDown = false;
+                        in_ = false;
                     },
                     false);
 
@@ -8512,9 +8724,15 @@ var cp1= proxy(
                             }
 
                             me.dragging = true;
+
+                            var p= new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0);
+
                             if (null !== me.lastSelectedActor.parent) {
                                 me.lastSelectedActor.parent.viewToModel(me.mousePoint);
                             }
+
+                            var px= me.lastSelectedActor.x;
+                            var py= me.lastSelectedActor.y;
                             me.lastSelectedActor.mouseDrag(
                                     new CAAT.MouseEvent().init(
                                             me.mousePoint.x,
@@ -8522,9 +8740,42 @@ var cp1= proxy(
                                             e,
                                             me.lastSelectedActor,
                                             me.screenMousePoint));
+
+                            /**
+                             * Element has not moved after drag, so treat it as a button.
+                             * 
+                             */
+                            if ( px===me.lastSelectedActor.x && py===me.lastSelectedActor.y )   {
+                                me.lastSelectedActor.viewToModel( p );
+
+                                if (in_ && !me.lastSelectedActor.contains(p.x, p.y)) {
+                                    me.lastSelectedActor.mouseExit(
+                                        new CAAT.MouseEvent().init(
+                                            p.x,
+                                            p.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                                    in_ = false;
+                                }
+
+                                if (!in_ && me.lastSelectedActor.contains(p.x, p.y)) {
+                                    me.lastSelectedActor.mouseEnter(
+                                        new CAAT.MouseEvent().init(
+                                            p.x,
+                                            p.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                                    in_ = true;
+                                }
+                            }
+
                             return;
                         }
 
+                        in_= true;
+                        
                         var lactor = me.findActorAtPosition(
                                 me.mousePoint,
                                 new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
@@ -8598,10 +8849,6 @@ var cp1= proxy(
                     case "touchend":   type = "mouseup"; break;
                     default: return;
                 }
-
-                //initMouseEvent(type, canBubble, cancelable, view, clickCount,
-                //           screenX, screenY, clientX, clientY, ctrlKey,
-                //           altKey, shiftKey, metaKey, button, relatedTarget);
 
                 var simulatedEvent = document.createEvent("MouseEvent");
                 simulatedEvent.initMouseEvent(
@@ -8748,7 +8995,7 @@ CAAT.PMR= 64;
 /**
  * Allow visual debugging artifacts.
  */
-CAAT.DEBUG= true;
+CAAT.DEBUG= false;
 
 /**
  * Log function which deals with window's Console object.
@@ -10019,6 +10266,15 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
         timerList:                      null,   // collection of CAAT.TimerTask objects.
         timerSequence:                  0,      // incremental CAAT.TimerTask id.
 
+        paused:                         false,
+
+        isPaused :  function()  {
+            return this.paused;
+        },
+
+        setPaused : function( paused ) {
+            this.paused= paused;
+        },
         /**
          * Check and apply timers in frame time.
          * @param time {number} the current Scene time.

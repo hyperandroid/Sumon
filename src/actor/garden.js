@@ -495,7 +495,9 @@
 (function() {
 
     HN.GardenScene= function() {
-        this.scores= new HN.Scores().setData().initialize();
+        if ( CAAT.browser!=='iOS' ) {
+            this.scores= new HN.Scores().setData().initialize();
+        }
         return this;
     };
 
@@ -724,12 +726,15 @@
             var numButtons= 4;
             var yGap=       10;
 
-            var scores= new CAAT.Actor().
+            var scores= null;
+            if (CAAT.browser!=='iOS') {
+                scores=new CAAT.Actor().
                     setAsButton( this.buttonImage.getRef(), 18,19,20,18, function() {
                         director.audioPlay('11');
                         //__enterCSS( document.getElementById('scores'), 700,0, 0,0, me.directorScene);
                     }).
                     setBounds( dw-bw-10, dh-bh-10, bw, bh );
+            }
 
             var info_howto_ci= new CAAT.SpriteImage().initialize( director.getImage('info_howto'), 2, 3 );
             var ihw= info_howto_ci.singleWidth;
@@ -826,7 +831,9 @@
 
             this.directorScene.addChild(info);
             this.directorScene.addChild(howto);
-            this.directorScene.addChild(scores);
+            if ( CAAT.browser!=='iOS' ) {
+                this.directorScene.addChild(scores);
+            }
 
 
             var logo= new CAAT.Actor().
@@ -847,12 +854,18 @@
             );
             this.directorScene.addChild(logo);
 
-            var madeWith= new CAAT.Actor().
-                    setAsButton( new CAAT.SpriteImage().initialize(director.getImage('madewith'),1,3), 0,1,2,0,
+            var madeWith= new CAAT.Actor();
+            var madeWithCI= new CAAT.SpriteImage().initialize(director.getImage('madewith'),1,3);
+            if ( CAAT.browser!=='iOS' ) {
+                    madeWith.setAsButton( madeWithCI, 0,1,2,0,
                         function(button) {
                             window.open('http://labs.hyperandroid.com', 'Hyperandroid');
-                        }).
-                    setLocation( dw-90, 0 );
+                        });
+            } else {
+                madeWith.setBackgroundImage(madeWithCI, true);
+
+            }
+            madeWith.setLocation( dw-90, 0 );
             this.directorScene.addChild(madeWith);
 
             this.directorScene.addChild(_info);
@@ -890,6 +903,23 @@
                         }
                     }).
                     setBounds( dw-ci.singleWidth-2, 2+2+ci.singleHeight, ci.singleWidth, ci.singleHeight );
+
+
+            music.prepare= function() {
+                if ( director.audioManager.isMusicEnabled() ) {
+                    this.setButtonImageIndex(0,1,0,0);
+                } else {
+                    this.setButtonImageIndex(2,2,2,2);
+                }
+            }
+
+            sound.prepare= function() {
+                if ( director.audioManager.isSoundEffectsEnabled() ) {
+                    this.setButtonImageIndex(3,4,3,3);
+                } else {
+                    this.setButtonImageIndex(5,5,5,5);
+                }
+            }
 
             this.directorScene.addChild(sound);
             this.directorScene.addChild(music);
@@ -929,7 +959,9 @@
          * @param data {object}
          */
         gameEvent : function( type, data ) {
-            this.scores.addScore( data.score, data.level, data.gameMode );
+            if ( CAAT.browser!=='iOS' ) {
+                this.scores.addScore( data.score, data.level, data.gameMode );
+            }
         }
     };
 })();

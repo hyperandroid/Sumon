@@ -2,7 +2,7 @@ function __CAAT__loadingScene(director) {
 
     var scene= director.createScene();
 
-    var TIME= 0; //5000;
+    var TIME= 5000;
     var time= new Date().getTime();
 
     var background= new CAAT.ActorContainer().
@@ -25,11 +25,7 @@ function __CAAT__loadingScene(director) {
                     setCycle(true)
             );
     var starsImage= null;
-    if ( director.getRenderType()==='CSS' ) {
-        starsImage= new CAAT.SpriteImage().initialize(director.getImage('stars'), 1,6 );
-    } else {
-        starsImage= new CAAT.SpriteImage().initialize(director.getImage('stars'), 24,6 );
-    }
+    starsImage= new CAAT.SpriteImage().initialize(director.getImage('stars'), 24,6 );
 
     var T= 600;
 
@@ -145,16 +141,17 @@ function __end_loading(director) {
 
 function __Hypernumbers_init()   {
 
-/*
+//CAAT.DEBUG=1;
+
+
     var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
     director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
-*/
 
+/*
     var director = new CAAT.Director().initialize(700,500).setClear(false);
     document.getElementById('game').appendChild(director.canvas);
-
-
-
+*/
+    CAAT.browser= navigator.browser;
     HN.director= director;
 
     new CAAT.ImagePreloader().loadImages(

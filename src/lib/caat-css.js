@@ -3445,6 +3445,100 @@ var cp1= proxy(
                     " z:" + String(Math.round(Math.floor(this.z*10))/10);
 		}
 	};
+})();(function() {
+
+    CAAT.Debug= function() {
+        return this;
+    };
+
+    CAAT.Debug.prototype= {
+
+        width:  0,
+        height: 0,
+        canvas: null,
+        ctx:    null,
+
+        SCALE:  50,
+
+        setScale : function(s) {
+            this.scale= s;
+            return this;
+        },
+
+        initialize: function(w,h) {
+            this.width= w;
+            this.height= h;
+
+            this.canvas= document.createElement('canvas');
+            this.canvas.width= w;
+            this.canvas.height=h;
+            this.ctx= this.canvas.getContext('2d');
+
+            this.ctx.fillStyle= 'black';
+            this.ctx.fillRect(0,0,this.width,this.height);
+
+            var dom= document.getElementById('caat-debug');
+            if ( null===dom ) {
+                document.body.appendChild( this.canvas );
+            } else {
+                dom.appendChild( this.canvas );
+            }
+
+            return this;
+        },
+
+        debugInfo : function( total, active ) {
+            this.size_total= total;
+            this.size_active= active;
+            this.paint();
+        },
+
+        paint : function() {
+            var ctx= this.ctx;
+            var t=0;
+
+            ctx.drawImage(
+                this.canvas,
+                1, 0, this.width-1, this.height,
+                0, 0, this.width-1, this.height );
+
+            ctx.strokeStyle= 'black';
+            ctx.beginPath();
+            ctx.moveTo( this.width-.5, 0 );
+            ctx.lineTo( this.width-.5, this.height );
+            ctx.stroke();
+
+            ctx.strokeStyle= CAAT.FRAME_TIME<16 ? 'green' : CAAT.FRAME_TIME<25 ? 'yellow' : 'red';
+            ctx.beginPath();
+            ctx.moveTo( this.width-.5, this.height );
+            ctx.lineTo( this.width-.5, this.height-(CAAT.FRAME_TIME*this.height/this.SCALE) );
+            ctx.stroke();
+
+            ctx.strokeStyle= 'rgba(0,255,0,.8)';
+            ctx.beginPath();
+
+            t= this.height-((15/this.SCALE*this.height)>>0)-.5;
+            ctx.moveTo( 0, t );
+            ctx.lineTo( this.width, t );
+            ctx.stroke();
+
+            ctx.strokeStyle= 'rgba(255,255,0,.8)';
+            ctx.beginPath();
+            t= this.height-((25/this.SCALE*this.height)>>0)-.5;
+            ctx.moveTo( 0, t );
+            ctx.lineTo( this.width, t );
+            ctx.stroke();
+
+            ctx.fillStyle='red';
+            ctx.fillRect( 0,0,120,15);
+            ctx.fillStyle='white';
+            ctx.fillText(
+                    '  Total: '+this.size_total+
+                    '  Active: '+this.size_active,
+                    0,
+                    12 );
+        }
+    };
 })();
 (function() {
 
@@ -3542,6 +3636,8 @@ var cp1= proxy(
         inFrame:                false,  // boolean indicating whether this Actor was present on last frame.
         backgroundImage:        null,
 
+        size_active:            1,      // number of animated children
+        size_total:             1,
 
         /**
          * Set this Actor's parent and connect in CSS a div with its parent.
@@ -3686,6 +3782,9 @@ var cp1= proxy(
          */
         setImageTransformation : function( it ) {
             this.transformation= it;
+            if ( it===CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE ) {
+                this.style( 'background-size', '100%' );
+            }
             return this;
         },
         /**
@@ -4209,6 +4308,15 @@ var cp1= proxy(
             return this;
 
         },
+        getBehavior : function(id)  {
+            for( var n=0; n<this.behaviorList.length; n++ ) {
+                if ( this.behaviorList[n].id===id) {
+                    return this.behaviorList[n];
+                }
+            }
+            return null;
+        },
+
         /**
          * Set discardable property. If an actor is discardable, upon expiration will be removed from
          * scene graph and hence deleted.
@@ -4627,6 +4735,8 @@ var cp1= proxy(
                 var enabled=    true;
                 var me=         this;
 
+                me.dragging=   false;
+
                 button.enabled= true;
                 button.setEnabled= function( enabled ) {
                     this.enabled= enabled;
@@ -4642,7 +4752,11 @@ var cp1= proxy(
                 button.setSpriteIndex( iNormal );
 
                 button.mouseEnter= function(mouseEvent) {
-                    this.setSpriteIndex( iOver );
+                    if ( this.dragging ) {
+                        this.setSpriteIndex( iPress );
+                    } else {
+                        this.setSpriteIndex( iOver );
+                    }
                     CAAT.setCursor('pointer');
                 };
 
@@ -4657,12 +4771,17 @@ var cp1= proxy(
 
                 button.mouseUp= function(mouseEvent) {
                     this.setSpriteIndex( iNormal );
+                    this.dragging= false;
                 };
 
                 button.mouseClick= function(mouseEvent) {
                     if ( this.enabled && null!==fnOnClick ) {
                         fnOnClick(this);
                     }
+                };
+
+                button.mouseDrag= function(mouseEvent)  {
+                    this.dragging= true;
                 };
 
                 button.setButtonImageIndex= function(_normal, _over, _press, _disabled ) {
@@ -4752,6 +4871,9 @@ var cp1= proxy(
             var i,l;
             var notActive= [];
 
+            this.size_active= 0;
+            this.size_total= 0;
+
             /**
              * Incluir los actores pendientes.
              * El momento es ahora, antes de procesar ninguno del contenedor.
@@ -4761,12 +4883,14 @@ var cp1= proxy(
                 this.addChild(child);
             }
             this.pendingChildrenList= [];
+            
 
 
             var cl= this.childrenList;
             for( i=0; i<cl.length; i++ ) {
                 var actor= cl[i];
                 actor.time= time;
+                this.size_total+= actor.size_total;
                 if ( actor.animate(director, time) ) {
                     if ( !this.activeChildren ) {
                         this.activeChildren= actor;
@@ -4777,7 +4901,9 @@ var cp1= proxy(
                         last.__next= actor;
                         last= actor;
                     }
-                    //this.activeChildren.push( actor );
+
+                    this.size_active+= actor.size_active;
+
                 } else {
                     if ( actor.expired && actor.discardable ) {
                         this.domElement.removeChild(actor.domElement);
@@ -5756,6 +5882,12 @@ var cp1= proxy(
         RESIZE_PROPORTIONAL:16,
         resize:             1,
 
+        checkDebug : function() {
+            if ( CAAT.DEBUG ) {
+                var dd= new CAAT.Debug().initialize( this.width, 60 );
+                this.debugInfo= dd.debugInfo.bind(dd);
+            }
+        },
         getRenderType : function() {
             return 'CSS';
         },
@@ -5829,6 +5961,8 @@ var cp1= proxy(
             this.style('height',''+height+'px');
             this.style('overflow', 'hidden' );
             this.enableEvents();
+
+            this.checkDebug();
             return this;
         },
         /**
@@ -5927,6 +6061,8 @@ var cp1= proxy(
              * draw director active scenes.
              */
             var i, l, tt;
+            this.size_total=0;
+            this.size_active=0;
 
             for (i = 0, l=this.childrenList.length; i < l; i++) {
                 var c= this.childrenList[i];
@@ -5939,7 +6075,14 @@ var cp1= proxy(
                     if ( c.onRenderEnd ) {
                         c.onRenderEnd(tt);
                     }
-                    c.time += time;
+
+                    if (!c.isPaused()) {
+                        c.time += time;
+                    }
+
+                    this.size_total+= this.childrenList[i].size_total;
+                    this.size_active+= this.childrenList[i].size_active;
+
                 }
             }
 
@@ -5958,6 +6101,7 @@ var cp1= proxy(
              * FIX: no haria falta. El director no se dibuja como elemento del grafo.
              */
             this.setModelViewMatrix(this);
+
 
             for (var i = 0; i < this.childrenList.length; i++) {
                 var tt = this.childrenList[i].time - this.childrenList[i].start_time;
@@ -6449,6 +6593,11 @@ var cp1= proxy(
             }
 
             this.render(delta);
+
+            if ( this.debugInfo ) {
+                this.debugInfo(this.size_total, this.size_active);
+            }
+
             this.timeline = t;
 
             if (this.onRenderEnd) {
@@ -6493,7 +6642,7 @@ var cp1= proxy(
             
             var canvas= this.eventHandler;
             var me= this;
-
+/*
             canvas.addEventListener('mouseup',
                     function(e) {
                         e.preventDefault();
@@ -6706,6 +6855,263 @@ var cp1= proxy(
                         }
                     },
                     false);
+*/
+
+
+            canvas.addEventListener('mouseup',
+                    function(e) {
+                        e.preventDefault();
+
+                        me.isMouseDown = false;
+                        me.getCanvasCoord(me.mousePoint, e);
+
+                        var pos= null;
+
+                        if (null !== me.lastSelectedActor) {
+                            pos = me.lastSelectedActor.viewToModel(
+                                    new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
+
+                            me.lastSelectedActor.mouseUp(
+                                    new CAAT.MouseEvent().init(
+                                            pos.x,
+                                            pos.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                        }
+
+                        if (null !== me.lastSelectedActor) {
+                            if (me.lastSelectedActor.contains(pos.x, pos.y)) {
+                                me.lastSelectedActor.mouseClick(
+                                    new CAAT.MouseEvent().init(
+                                        pos.x,
+                                        pos.y,
+                                        e,
+                                        me.lastSelectedActor,
+                                        me.screenMousePoint));
+                            }
+                        }
+                        me.dragging = false;
+
+                        in_= false;
+                    },
+                    false);
+
+            canvas.addEventListener('mousedown',
+                    function(e) {
+
+                        e.preventDefault();
+
+                        me.getCanvasCoord(me.mousePoint, e);
+
+                        me.isMouseDown = true;
+                        me.lastSelectedActor = me.findActorAtPosition(
+                                me.mousePoint,
+                                new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
+                        var px = me.mousePoint.x;
+                        var py = me.mousePoint.y;
+
+                        if (null !== me.lastSelectedActor) {
+
+                            me.lastSelectedActor.viewToModel(me.mousePoint);
+
+                            // to calculate mouse drag threshold
+                            me.prevMousePoint.x = px;
+                            me.prevMousePoint.y = py;
+                            me.lastSelectedActor.mouseDown(
+                                    new CAAT.MouseEvent().init(
+                                            me.mousePoint.x,
+                                            me.mousePoint.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                        }
+                    },
+                    false);
+
+            canvas.addEventListener('mouseover',
+                    function(e) {
+
+                        e.preventDefault();
+
+                        me.getCanvasCoord(me.mousePoint, e);
+
+                        me.lastSelectedActor = me.findActorAtPosition(
+                                me.mousePoint,
+                                new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
+                        if (null !== me.lastSelectedActor) {
+
+                            var pos = new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0);
+                            me.lastSelectedActor.viewToModel(pos);
+
+                            me.lastSelectedActor.mouseEnter(
+                                    new CAAT.MouseEvent().init(
+                                            pos.x,
+                                            pos.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                        }
+                    },
+                    false);
+
+            canvas.addEventListener('mouseout',
+                    function(e) {
+
+                        e.preventDefault();
+
+                        if (null !== me.lastSelectedActor) {
+
+                            me.getCanvasCoord(me.mousePoint, e);
+                            var pos = new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0);
+                            me.lastSelectedActor.viewToModel(pos);
+
+                            me.lastSelectedActor.mouseExit(
+                                    new CAAT.MouseEvent().init(
+                                            pos.x,
+                                            pos.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                            me.lastSelectedActor = null;
+                        }
+                        me.isMouseDown = false;
+                        in_ = false;
+                    },
+                    false);
+
+            canvas.addEventListener('mousemove',
+                    function(e) {
+
+                        e.preventDefault();
+
+                        me.getCanvasCoord(me.mousePoint, e);
+                        // drag
+                        if (me.isMouseDown && null !== me.lastSelectedActor) {
+
+                            // check for mouse move threshold.
+                            if (!me.dragging) {
+                                if (Math.abs(me.prevMousePoint.x - me.mousePoint.x) < CAAT.DRAG_THRESHOLD_X &&
+                                        Math.abs(me.prevMousePoint.y - me.mousePoint.y) < CAAT.DRAG_THRESHOLD_Y) {
+                                    return;
+                                }
+                            }
+
+                            me.dragging = true;
+
+                            var p= new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0);
+
+                            if (null !== me.lastSelectedActor.parent) {
+                                me.lastSelectedActor.parent.viewToModel(me.mousePoint);
+                            }
+
+                            var px= me.lastSelectedActor.x;
+                            var py= me.lastSelectedActor.y;
+                            me.lastSelectedActor.mouseDrag(
+                                    new CAAT.MouseEvent().init(
+                                            me.mousePoint.x,
+                                            me.mousePoint.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+
+                            /**
+                             * Element has not moved after drag, so treat it as a button.
+                             *
+                             */
+                            if ( px===me.lastSelectedActor.x && py===me.lastSelectedActor.y )   {
+                                me.lastSelectedActor.viewToModel( p );
+
+                                if (in_ && !me.lastSelectedActor.contains(p.x, p.y)) {
+                                    me.lastSelectedActor.mouseExit(
+                                        new CAAT.MouseEvent().init(
+                                            p.x,
+                                            p.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                                    in_ = false;
+                                }
+
+                                if (!in_ && me.lastSelectedActor.contains(p.x, p.y)) {
+                                    me.lastSelectedActor.mouseEnter(
+                                        new CAAT.MouseEvent().init(
+                                            p.x,
+                                            p.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                                    in_ = true;
+                                }
+                            }
+
+                            return;
+                        }
+
+                        in_= true;
+
+                        var lactor = me.findActorAtPosition(
+                                me.mousePoint,
+                                new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
+                        var pos = lactor.viewToModel(new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
+
+                        // cambiamos de actor.
+                        if (lactor !== me.lastSelectedActor) {
+                            if (null !== me.lastSelectedActor) {
+                                var posExit = me.lastSelectedActor.viewToModel(
+                                        new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
+                                me.lastSelectedActor.mouseExit(
+                                        new CAAT.MouseEvent().init(
+                                                posExit.x,
+                                                posExit.y,
+                                                e,
+                                                me.lastSelectedActor,
+                                                me.screenMousePoint));
+                            }
+                            if (null !== lactor) {
+                                lactor.mouseEnter(
+                                        new CAAT.MouseEvent().init(
+                                                pos.x,
+                                                pos.y,
+                                                e,
+                                                lactor,
+                                                me.screenMousePoint));
+                            }
+                        }
+                        me.lastSelectedActor = lactor;
+                        if (null !== lactor) {
+                            me.lastSelectedActor.mouseMove(
+                                    new CAAT.MouseEvent().init(
+                                            pos.x,
+                                            pos.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                        }
+                    },
+                    false);
+
+            canvas.addEventListener("dblclick",
+                    function(e) {
+
+                        e.preventDefault();
+
+                        me.getCanvasCoord(me.mousePoint, e);
+                        if (null !== me.lastSelectedActor) {
+
+                            me.lastSelectedActor.viewToModel(me.mousePoint.x, me.mousePoint.y);
+
+                            me.lastSelectedActor.mouseDblClick(
+                                    new CAAT.MouseEvent().init(
+                                            me.mousePoint.x,
+                                            me.mousePoint.y,
+                                            e,
+                                            me.lastSelectedActor,
+                                            me.screenMousePoint));
+                        }
+                    },
+                    false);
+
 
             function touchHandler(event) {
                 var touches = event.changedTouches,
@@ -6908,7 +7314,7 @@ CAAT.PMR= 64;
 /**
  * Allow visual debugging artifacts.
  */
-CAAT.DEBUG= true;
+CAAT.DEBUG= false;
 
 /**
  * Log function which deals with window's Console object.
@@ -8178,6 +8584,16 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
 
         timerList:                      null,   // collection of CAAT.TimerTask objects.
         timerSequence:                  0,      // incremental CAAT.TimerTask id.
+
+        paused:                         false,
+
+        isPaused :  function()  {
+            return this.paused;
+        },
+
+        setPaused : function( paused ) {
+            this.paused= paused;
+        },
 
         /**
          * Check and apply timers in frame time.

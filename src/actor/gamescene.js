@@ -71,15 +71,6 @@
 
             return this;
         },
-        /**
-         * Falling es que el elemento ha sido quitado del tablero.
-         * @param fall
-         */
-            /*
-        setFalling : function(fall) {
-            this.falling= fall;
-            return this;
-        },*/
         setStatus : function(st) {
             this.status= st;
             return this;
@@ -96,12 +87,12 @@
                     setValues( 1, 1.2, 1, 1.2 ).
                     setPingPong();
 
-            if ( navigator.browser!=='iOS' ) {
+            if ( CAAT.browser!=='iOS' ) {
                 CAAT.setCursor('pointer');
             }
         },
         mouseExit : function(mouseEvent) {
-            if ( navigator.browser!=='iOS' ) {
+            if ( CAAT.browser!=='iOS' ) {
                 CAAT.setCursor('default');
             }
         },
@@ -302,7 +293,7 @@
                         },
                         behaviorApplied : function(behavior, time, normalizedTime, actor, value) {
 
-                            for( var i=0; i< (navigator.browser==='iOS' ? 1 : 3); i++ ) {
+                            for( var i=0; i< (CAAT.browser==='iOS' ? 1 : 3); i++ ) {
                                 var offset0= Math.random()*10*(Math.random()<.5?1:-1);
                                 var offset1= Math.random()*10*(Math.random()<.5?1:-1);
 
@@ -476,6 +467,7 @@
         HN.GuessNumberActor.superclass.constructor.call(this);
         this.actors= [];
         this.setGlobalAlpha(true);
+
         return this;
     };
 
@@ -756,7 +748,7 @@
                 ctx.lineCap=        'round';
                 ctx.lineJoin=       'round';
 
-                for( i=2; i<=(navigator.browser==='iOS' ? 2 : 8); i+=2 ) {
+                for( i=2; i<=(CAAT.browser==='iOS' ? 2 : 8); i+=2 ) {
 
                     ctx.lineWidth=  i;
                     ctx.globalAlpha= .5 - i/8/3;
@@ -1670,13 +1662,15 @@
                             })
                         });
 
-            var tweetImage= new CAAT.SpriteImage().initialize( director.getImage('tweet'), 1, 3 );
-            var tweet= new CAAT.Actor().
-                    setAsButton( tweetImage, 0,1,2,0,
-                        function(button) {
-                            var url = "http://twitter.com/home/?status=Wow! I just scored "+me.context.score+" points (mode "+me.context.gameMode.name+") in Sumon. Beat that! http://labs.hyperandroid.com/static/sumon/sumon.html";
-                            window.open(url, 'blank', '');
-                        });
+            if ( CAAT.browser!=='iOS' ) {
+                var tweetImage= new CAAT.SpriteImage().initialize( director.getImage('tweet'), 1, 3 );
+                var tweet= new CAAT.Actor().
+                        setAsButton( tweetImage, 0,1,2,0,
+                            function(button) {
+                                var url = "http://twitter.com/home/?status=Wow! I just scored "+me.context.score+" points (mode "+me.context.gameMode.name+") in Sumon. Beat that! http://labs.hyperandroid.com/static/sumon/sumon.html";
+                                window.open(url, 'blank', '');
+                            });
+            }
 
             var x= 45;
             //var x= (this.endGameActor.width-2*menu.width-30)/2;
@@ -1685,13 +1679,25 @@
             menu.setLocation( x, y );
             //restart.setLocation( x+menu.width+30, y );
             restart.setLocation( x+menu.width+10, y );
-            tweet.setLocation( 375, this.endGameActor.height - 25 - tweetImage.height );
 
             this.endGameActor.addChild(menu);
             this.endGameActor.addChild(restart);
-            this.endGameActor.addChild(tweet);
 
-
+            var __buttons= [ menu, restart ];
+            if ( CAAT.browser!=='iOS' ) {
+                tweet.setLocation( 375, this.endGameActor.height - 25 - tweetImage.height );
+                this.endGameActor.addChild(tweet);
+                __buttons.push( tweet );
+            } else {
+                CAAT.modules.LayoutUtils.row(
+                    this.endGameActor,
+                    __buttons,
+                    {
+                        padding_left:   50,
+                        padding_right:  50,
+                        top:            y
+                    });
+            }
 
             //////////////////////// info de partida
             this.levelActorEG= new HN.LevelActor().
@@ -2264,6 +2270,22 @@
                         }
                     }).
                     setBounds( dw-ci.singleWidth-2, 2+2+ci.singleHeight, ci.singleWidth, ci.singleHeight );
+
+            music.prepare= function() {
+                if ( director.audioManager.isMusicEnabled() ) {
+                    this.setButtonImageIndex(0,1,0,0);
+                } else {
+                    this.setButtonImageIndex(2,2,2,2);
+                }
+            }
+
+            sound.prepare= function() {
+                if ( director.audioManager.isSoundEffectsEnabled() ) {
+                    this.setButtonImageIndex(3,4,3,3);
+                } else {
+                    this.setButtonImageIndex(5,5,5,5);
+                }
+            }
 
             this.directorScene.addChild(sound);
             this.directorScene.addChild(music);
