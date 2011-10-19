@@ -1,34 +1,8 @@
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Library namespace.
  * CAAT stands for: Canvas Advanced Animation Tookit.
- */
-
-/**
- * @license
- * 
- * The MIT License
- * Copyright (c) 2010-2011 Ibon Tolosana, Hyperandroid || http://labs.hyperandroid.com/
-
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
-
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
-
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
  */
 
 /**
@@ -47,7 +21,7 @@ Function.prototype.bind= function() {
     }
 };
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Behaviors are keyframing elements.
  * By using a BehaviorContainer, you can specify different actions on any animation Actor.
@@ -297,11 +271,10 @@ Function.prototype.bind= function() {
 			return this.interpolator.getPosition(time/this.behaviorDuration).y;
 		},
         /**
-         * Private.
          * Sets the behavior as expired.
          * This method must not be called directly. It is an auxiliary method to isBehaviorInTime method.
-         * @param actor a CAAT.Actor instance.
-         * @param time an integer with the scene time.
+         * @param actor {CAAT.Actor}
+         * @param time {integer} the scene time.
          *
          * @private
          */
@@ -425,9 +398,6 @@ Function.prototype.bind= function() {
 			if ( this.cycleBehavior )	{
 				behavior.expired =  false;
 			}
-/*            else {
-                this.fireBehaviorExpiredEvent( actor, time );
-            }*/
 		},
         /**
          * Implementation method of the behavior.
@@ -437,11 +407,32 @@ Function.prototype.bind= function() {
          */
 		setForTime : function(time, actor) {
 			for( var i=0; i<this.behaviors.length; i++ ) {
-				this.behaviors[i].setForTime( time, actor );
+				this.behaviors[i].setForTime( time-this.behaviorStartTime, actor );
 			}
 
             return null;
-		}
+		},
+
+        setExpired : function(actor,time) {
+            CAAT.ContainerBehavior.superclass.setExpired.call(this,actor,time);
+            // set for final interpolator value.
+            for( var i=0; i<this.behaviors.length; i++ ) {
+                if (!this.behaviors[i].expired) {
+                    this.behaviors[i].setExpired(actor,time-this.behaviorStartTime);
+                }
+            }
+            this.fireBehaviorExpiredEvent(actor,time);
+            return this;
+        },
+
+        setFrameTime : function( start, duration )  {
+            CAAT.ContainerBehavior.superclass.setFrameTime.call(this,start,duration);
+            for( var i=0; i<this.behaviors.length; i++ ) {
+                this.behaviors[i].expired= false;
+            }
+            return this;
+        }
+
 	};
 
     extend( CAAT.ContainerBehavior, CAAT.Behavior, null );
@@ -1101,14 +1092,17 @@ Function.prototype.bind= function() {
 		]
 	};
 })();/**
+ * See LICENSE file.
+ *
  * Extend a prototype with another to form a classical OOP inheritance procedure.
  *
- * @param subc Prototype to define the base class
- * @param superc Prototype to be extended (derived class).
+ * @param subc {object} Prototype to define the base class
+ * @param superc {object} Prototype to be extended (derived class).
  */
 function extend(subc, superc) {
     var subcp = subc.prototype;
 
+    // Class pattern.
     var F = function() {
     };
     F.prototype = superc.prototype;
@@ -1117,6 +1111,7 @@ function extend(subc, superc) {
     subc.superclass = superc.prototype;
     subc.prototype.constructor = subc;
 
+    // Reset constructor. See Object Oriented Javascript for an in-depth explanation of this.
     if (superc.prototype.constructor === Object.prototype.constructor) {
         superc.prototype.constructor = superc;
     }
@@ -1126,7 +1121,13 @@ function extend(subc, superc) {
     for (var method in subcp) {
         if (subcp.hasOwnProperty(method)) {
             subc.prototype[method] = subcp[method];
-/*
+
+/**
+ * Sintactic sugar to add a __super attribute on every overriden method.
+ * Despite comvenient, it slows things down by 5fps.
+ *
+ * Uncomment at your own risk.
+ *
             // tenemos en super un metodo con igual nombre.
             if ( superc.prototype[method]) {
                 subc.prototype[method]= (function(fn, fnsuper) {
@@ -1151,7 +1152,7 @@ function extend(subc, superc) {
 }
 
 /**
- * Proxy an object or wrap/decorate a function.
+ * Dynamic Proxy for an object or wrap/decorate a function.
  *
  * @param object
  * @param preMethod
@@ -1313,7 +1314,7 @@ var cp1= proxy(
             return -1;
         });
  **//**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Manages every Actor affine transformations.
  * Take into account that Canvas' renderingContext computes postive rotation clockwise, so hacks
@@ -2352,7 +2353,9 @@ var cp1= proxy(
         }
 	};
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
+ *
+ * @author: Mario Gonzalez (@onedayitwilltake) and Ibon Tolosana (@hyperandroid)
  *
  * Helper classes for color manipulation.
  *
@@ -2612,7 +2615,7 @@ var cp1= proxy(
 	};
 })();
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Rectangle Class.
  * Needed to compute Curve bounding box.
@@ -2730,7 +2733,7 @@ var cp1= proxy(
         }
 	};
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Classes to solve and draw curves.
  * Curve is the superclass of
@@ -2840,7 +2843,10 @@ var cp1= proxy(
 			if ( !rectangle ) {
 				rectangle= new CAAT.Rectangle();
 			}
-			
+
+            // thanks yodesoft.com for spotting the first point is out of the BB
+            rectangle.union( this.coordlist[0].x, this.coordlist[0].y );
+
 			var pt= new CAAT.Point();
 			for(var t=this.k;t<=1+this.k;t+=this.k){
 				this.solve(pt,t);
@@ -3229,7 +3235,7 @@ var cp1= proxy(
 
     extend(CAAT.CatmullRom, CAAT.Curve, null);
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Hold a 2D point information.
  * Think about the possibility of turning CAAT.Point into {x:,y:}.
@@ -3247,9 +3253,9 @@ var cp1= proxy(
      * @constructor
      */
 	CAAT.Point= function(xpos, ypos, zpos) {
-		this.x= xpos || 0;
-		this.y= ypos || 0;
-        this.z= zpos || 0;
+		this.x= xpos;
+		this.y= ypos;
+        this.z= zpos;
 		return this;
 	};
 	
@@ -3445,7 +3451,17 @@ var cp1= proxy(
                     " z:" + String(Math.round(Math.floor(this.z*10))/10);
 		}
 	};
-})();(function() {
+})();/**
+ * See LICENSE file.
+ *
+ * Get realtime Debug information of CAAT's activity.
+ * Set CAAT.DEBUG=1 before any CAAT.Director object creation.
+ * This class expects a DOM node called 'caat-debug' being a container element (DIV) where
+ * it will append itself. If this node is not present, it will append itself to the document's body.
+ *
+ */
+
+(function() {
 
     CAAT.Debug= function() {
         return this;
@@ -3539,7 +3555,15 @@ var cp1= proxy(
                     12 );
         }
     };
-})();
+})();/**
+ * See LICENSE file.
+ *
+ * Classes to define animable elements with DOM/CSS interface.
+ * Actor is the superclass of every animable element in the scene graph. It handles the whole
+ * affine transformation MatrixStack, rotation, translation, globalAlpha and Behaviours. It also
+ * defines input methods.
+ **/
+
 (function() {
 
     /**
@@ -4152,8 +4176,8 @@ var cp1= proxy(
          * @return this
          */
 	    setSize : function( w, h )   {
-	        this.width= w>>0;
-	        this.height= h>>0;
+	        this.width= w;
+	        this.height= h;
 
             this.style('width', ''+w+'px');
             this.style('height',''+h+'px');
@@ -4732,15 +4756,17 @@ var cp1= proxy(
                 var iDisabled=  0;
                 var iCurrent=   0;
                 var fnOnClick=  null;
-                var enabled=    true;
-                var me=         this;
-
-                me.dragging=   false;
 
                 button.enabled= true;
                 button.setEnabled= function( enabled ) {
                     this.enabled= enabled;
                 };
+
+                button.actionPerformed= function(event) {
+                    if ( this.enabled && null!==fnOnClick ) {
+                        fnOnClick(this);
+                    }
+                }
 
                 button.setBackgroundImage(buttonImage, true);
                 iNormal=       _iNormal || 0;
@@ -4775,9 +4801,6 @@ var cp1= proxy(
                 };
 
                 button.mouseClick= function(mouseEvent) {
-                    if ( this.enabled && null!==fnOnClick ) {
-                        fnOnClick(this);
-                    }
                 };
 
                 button.mouseDrag= function(mouseEvent)  {
@@ -5123,7 +5146,7 @@ var cp1= proxy(
 
 })();
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Sound implementation.
  */
@@ -5492,7 +5515,7 @@ var cp1= proxy(
         }
     };
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * In this file we'll be adding every useful Actor that is specific for certain purpose.
  *
@@ -5802,7 +5825,7 @@ var cp1= proxy(
 
 })();
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  **/
 
@@ -5881,6 +5904,7 @@ var cp1= proxy(
         RESIZE_BOTH:        8,
         RESIZE_PROPORTIONAL:16,
         resize:             1,
+        onResizeCallback:   null,
 
         checkDebug : function() {
             if ( CAAT.DEBUG ) {
@@ -5907,19 +5931,34 @@ var cp1= proxy(
                     this.setScaleAnchored( factor, factor, 0, 0 );
                     break;
             }
+
+            if ( this.onResizeCallback )    {
+                this.onResizeCallback( this, w, h );
+            }
+            
         },
         /**
-         * Enable window resize events and set redimension policy.
+         * Enable window resize events and set redimension policy. A callback functio could be supplied
+         * to be notified on a Director redimension event. This is necessary in the case you set a redim
+         * policy not equal to RESIZE_PROPORTIONAL. In those redimension modes, director's area and their
+         * children scenes are resized to fit the new area. But scenes content is not resized, and have
+         * no option of knowing so uless an onResizeCallback function is supplied.
+         *
          * @param mode {number}  RESIZE_BOTH, RESIZE_WIDTH, RESIZE_HEIGHT, RESIZE_NONE.
+         * @param onResizeCallback {function(director{CAAT.Director}, width{integer}, height{integer})} a callback
+         * to notify on canvas resize.
          */
-        enableResizeEvents : function(mode) {
+        enableResizeEvents : function(mode, onResizeCallback) {
             if (mode === this.RESIZE_BOTH || mode === this.RESIZE_WIDTH || mode === this.RESIZE_HEIGHT || mode===this.RESIZE_PROPORTIONAL) {
                 this.referenceWidth= this.width;
                 this.referenceHeight=this.height;
                 this.resize = mode;
                 CAAT.registerResizeListener(this);
+                this.onResizeCallback= onResizeCallback;
+                this.windowResized( window.innerWidth, window.innerHeight );
             } else {
                 CAAT.unregisterResizeListener(this);
+                this.onResizeCallback= null;
             }
         },
         /**
@@ -6642,221 +6681,6 @@ var cp1= proxy(
             
             var canvas= this.eventHandler;
             var me= this;
-/*
-            canvas.addEventListener('mouseup',
-                    function(e) {
-                        e.preventDefault();
-
-                        me.isMouseDown = false;
-                        me.getCanvasCoord(me.mousePoint, e);
-
-                        var pos;
-
-                        if (null !== me.lastSelectedActor) {
-                            pos = me.lastSelectedActor.viewToModel(
-                                    new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
-
-                            me.lastSelectedActor.mouseUp(
-                                    new CAAT.MouseEvent().init(
-                                            pos.x,
-                                            pos.y,
-                                            e,
-                                            me.lastSelectedActor,
-                                            me.screenMousePoint));
-                        }
-
-                        if (!me.dragging) {
-                            if (null !== me.lastSelectedActor) {
-                                me.lastSelectedActor.mouseClick(
-                                        new CAAT.MouseEvent().init(
-                                                pos.x,
-                                                pos.y,
-                                                e,
-                                                me.lastSelectedActor,
-                                                me.screenMousePoint));
-                            }
-                        } else {
-                            me.dragging = false;
-                        }
-                    },
-                    false);
-
-            canvas.addEventListener('mousedown',
-                    function(e) {
-
-                        e.preventDefault();
-
-                        me.getCanvasCoord(me.mousePoint, e);
-
-                        me.isMouseDown = true;
-                        me.lastSelectedActor = me.findActorAtPosition(
-                                me.mousePoint,
-                                new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
-                        var px = me.mousePoint.x;
-                        var py = me.mousePoint.y;
-
-                        if (null !== me.lastSelectedActor) {
-
-                            me.lastSelectedActor.viewToModel(me.mousePoint);
-
-                            // to calculate mouse drag threshold
-                            me.prevMousePoint.x = px;
-                            me.prevMousePoint.y = py;
-                            me.lastSelectedActor.mouseDown(
-                                    new CAAT.MouseEvent().init(
-                                            me.mousePoint.x,
-                                            me.mousePoint.y,
-                                            e,
-                                            me.lastSelectedActor,
-                                            me.screenMousePoint));
-                        }
-                    },
-                    false);
-
-            canvas.addEventListener('mouseover',
-                    function(e) {
-
-                        e.preventDefault();
-
-                        me.getCanvasCoord(me.mousePoint, e);
-
-                        me.lastSelectedActor = me.findActorAtPosition(
-                                me.mousePoint,
-                                new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
-                        if (null !== me.lastSelectedActor) {
-
-                            var pos = new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0);
-                            me.lastSelectedActor.viewToModel(pos);
-
-                            me.lastSelectedActor.mouseEnter(
-                                    new CAAT.MouseEvent().init(
-                                            pos.x,
-                                            pos.y,
-                                            e,
-                                            me.lastSelectedActor,
-                                            me.screenMousePoint));
-                        }
-                    },
-                    false);
-
-            canvas.addEventListener('mouseout',
-                    function(e) {
-
-                        e.preventDefault();
-
-                        if (null !== me.lastSelectedActor) {
-
-                            me.getCanvasCoord(me.mousePoint, e);
-                            var pos = new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0);
-                            me.lastSelectedActor.viewToModel(pos);
-
-                            me.lastSelectedActor.mouseExit(
-                                    new CAAT.MouseEvent().init(
-                                            pos.x,
-                                            pos.y,
-                                            e,
-                                            me.lastSelectedActor,
-                                            me.screenMousePoint));
-                            me.lastSelectedActor = null;
-                        }
-                        me.isMouseDown = false;
-                    },
-                    false);
-
-            canvas.addEventListener('mousemove',
-                    function(e) {
-
-                        e.preventDefault();
-
-                        me.getCanvasCoord(me.mousePoint, e);
-                        // drag
-                        if (me.isMouseDown && null !== me.lastSelectedActor) {
-
-                            // check for mouse move threshold.
-                            if (!me.dragging) {
-                                if (Math.abs(me.prevMousePoint.x - me.mousePoint.x) < CAAT.DRAG_THRESHOLD_X &&
-                                        Math.abs(me.prevMousePoint.y - me.mousePoint.y) < CAAT.DRAG_THRESHOLD_Y) {
-                                    return;
-                                }
-                            }
-
-                            me.dragging = true;
-                            if (null !== me.lastSelectedActor.parent) {
-                                me.lastSelectedActor.parent.viewToModel(me.mousePoint);
-                            }
-                            me.lastSelectedActor.mouseDrag(
-                                    new CAAT.MouseEvent().init(
-                                            me.mousePoint.x,
-                                            me.mousePoint.y,
-                                            e,
-                                            me.lastSelectedActor,
-                                            me.screenMousePoint));
-                            return;
-                        }
-
-                        var lactor = me.findActorAtPosition(
-                                me.mousePoint,
-                                new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
-                        var pos = lactor.viewToModel(new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
-
-                        // cambiamos de actor.
-                        if (lactor !== me.lastSelectedActor) {
-                            if (null !== me.lastSelectedActor) {
-                                var posExit = me.lastSelectedActor.viewToModel(
-                                        new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
-                                me.lastSelectedActor.mouseExit(
-                                        new CAAT.MouseEvent().init(
-                                                posExit.x,
-                                                posExit.y,
-                                                e,
-                                                me.lastSelectedActor,
-                                                me.screenMousePoint));
-                            }
-                            if (null !== lactor) {
-                                lactor.mouseEnter(
-                                        new CAAT.MouseEvent().init(
-                                                pos.x,
-                                                pos.y,
-                                                e,
-                                                lactor,
-                                                me.screenMousePoint));
-                            }
-                        }
-                        me.lastSelectedActor = lactor;
-                        if (null !== lactor) {
-                            me.lastSelectedActor.mouseMove(
-                                    new CAAT.MouseEvent().init(
-                                            pos.x,
-                                            pos.y,
-                                            e,
-                                            me.lastSelectedActor,
-                                            me.screenMousePoint));
-                        }
-                    },
-                    false);
-
-            canvas.addEventListener("dblclick",
-                    function(e) {
-
-                        e.preventDefault();
-
-                        me.getCanvasCoord(me.mousePoint, e);
-                        if (null !== me.lastSelectedActor) {
-
-                            me.lastSelectedActor.viewToModel(me.mousePoint.x, me.mousePoint.y);
-
-                            me.lastSelectedActor.mouseDblClick(
-                                    new CAAT.MouseEvent().init(
-                                            me.mousePoint.x,
-                                            me.mousePoint.y,
-                                            e,
-                                            me.lastSelectedActor,
-                                            me.screenMousePoint));
-                        }
-                    },
-                    false);
-*/
-
 
             canvas.addEventListener('mouseup',
                     function(e) {
@@ -6871,6 +6695,10 @@ var cp1= proxy(
                             pos = me.lastSelectedActor.viewToModel(
                                     new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
 
+                            if ( me.lastSelectedActor.actionPerformed && me.lastSelectedActor.contains(pos.x, pos.y) ) {
+                                me.lastSelectedActor.actionPerformed(e)
+                            }
+
                             me.lastSelectedActor.mouseUp(
                                     new CAAT.MouseEvent().init(
                                             pos.x,
@@ -6880,7 +6708,7 @@ var cp1= proxy(
                                             me.screenMousePoint));
                         }
 
-                        if (null !== me.lastSelectedActor) {
+                        if (!me.dragging && null !== me.lastSelectedActor) {
                             if (me.lastSelectedActor.contains(pos.x, pos.y)) {
                                 me.lastSelectedActor.mouseClick(
                                     new CAAT.MouseEvent().init(
@@ -7053,40 +6881,37 @@ var cp1= proxy(
                         var lactor = me.findActorAtPosition(
                                 me.mousePoint,
                                 new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
-                        var pos = lactor.viewToModel(new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
 
                         // cambiamos de actor.
                         if (lactor !== me.lastSelectedActor) {
                             if (null !== me.lastSelectedActor) {
-                                var posExit = me.lastSelectedActor.viewToModel(
-                                        new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
                                 me.lastSelectedActor.mouseExit(
-                                        new CAAT.MouseEvent().init(
-                                                posExit.x,
-                                                posExit.y,
-                                                e,
-                                                me.lastSelectedActor,
-                                                me.screenMousePoint));
+                                    new CAAT.MouseEvent().init(
+                                        me.mousePoint.x,
+                                        me.mousePoint.y,
+                                        e,
+                                        me.lastSelectedActor,
+                                        me.screenMousePoint));
                             }
                             if (null !== lactor) {
                                 lactor.mouseEnter(
-                                        new CAAT.MouseEvent().init(
-                                                pos.x,
-                                                pos.y,
-                                                e,
-                                                lactor,
-                                                me.screenMousePoint));
+                                    new CAAT.MouseEvent().init(
+                                        me.mousePoint.x,
+                                        me.mousePoint.y,
+                                        e,
+                                        lactor,
+                                        me.screenMousePoint));
                             }
                         }
                         me.lastSelectedActor = lactor;
                         if (null !== lactor) {
                             me.lastSelectedActor.mouseMove(
-                                    new CAAT.MouseEvent().init(
-                                            pos.x,
-                                            pos.y,
-                                            e,
-                                            me.lastSelectedActor,
-                                            me.screenMousePoint));
+                                new CAAT.MouseEvent().init(
+                                    me.mousePoint.x,
+                                    me.mousePoint.y,
+                                    e,
+                                    me.lastSelectedActor,
+                                    me.screenMousePoint));
                         }
                     },
                     false);
@@ -7111,6 +6936,7 @@ var cp1= proxy(
                         }
                     },
                     false);
+
 
 
             function touchHandler(event) {
@@ -7240,16 +7066,13 @@ var cp1= proxy(
 })();
 
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * MouseEvent is a class to hold necessary information of every mouse event related to concrete
  * scene graph Actors.
  *
  * Here it is also the logic to on mouse events, pump the correct event to the appropiate scene
  * graph Actor.
- *
- * 20101008 Hyperandroid. changed event scope from CAAT.director.canvas to window. Works under
- *          al major browsers on linux and win7. Thanks @alteredq for this tip.
  *
  * TODO: add events for event pumping:
  *  + cancelBubling
@@ -7415,12 +7238,15 @@ CAAT.GlobalEnableEvents= function __GlobalEnableEvents() {
                 CAAT.KEY_MODIFIERS.alt= true;
             } else {
                 for( var i=0; i<CAAT.keyListeners.length; i++ ) {
-                    CAAT.keyListeners[i](key,'down',
+                    CAAT.keyListeners[i](
+                        key,
+                        'down',
                         {
                             alt:        CAAT.KEY_MODIFIERS.alt,
                             control:    CAAT.KEY_MODIFIERS.control,
                             shift:      CAAT.KEY_MODIFIERS.shift
-                        });
+                        },
+                        evt);
                 }
             }
         },
@@ -7438,12 +7264,15 @@ CAAT.GlobalEnableEvents= function __GlobalEnableEvents() {
             } else {
 
                 for( var i=0; i<CAAT.keyListeners.length; i++ ) {
-                    CAAT.keyListeners[i](key,'up',
+                    CAAT.keyListeners[i](
+                        key,
+                        'up',
                         {
                             alt:        CAAT.KEY_MODIFIERS.alt,
                             control:    CAAT.KEY_MODIFIERS.control,
                             shift:      CAAT.KEY_MODIFIERS.shift
-                        });
+                        },
+                        evt);
                 }
             }
         },
@@ -7583,7 +7412,7 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
     }
 */
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * TODO: allow set of margins, spacing, etc. to define subimages.
  *
@@ -8362,7 +8191,7 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
 
     };
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Image/Resource preloader.
  *
@@ -8441,7 +8270,9 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
         }
 
     };
-})();
+})();/**
+ * See LICENSE file.
+ */
 (function() {
     /**
      * This class defines a timer action which is constrained to Scene time, so every Scene has the
@@ -8549,7 +8380,7 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
     };
 })();
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+* See LICENSE file.
  *
  */
 
@@ -9044,6 +8875,8 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
     extend( CAAT.Scene, CAAT.ActorContainer, null);
 
 })();/**
+ * See LICENSE file.
+ *
  * @author  Mario Gonzalez || http://onedayitwillmake.com
  *
  **/
@@ -9058,6 +8891,8 @@ CAAT.modules = CAAT.modules || {};
  * @namespace
  */
 CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
+ * See LICENSE file.
+ *
 	  ####  #####  ##### ####    ###  #   # ###### ###### ##     ##  #####  #     #      ########    ##    #  #  #####
 	 #   # #   #  ###   #   #  #####  ###    ##     ##   ##  #  ##    #    #     #     #   ##   #  #####  ###   ###
 	 ###  #   #  ##### ####   #   #   #   ######   ##   #########  #####  ##### ##### #   ##   #  #   #  #   # #####
@@ -9207,6 +9042,9 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 		}
 	};
 })();/**
+ *
+ * See LICENSE file.
+ * 
 	  ####  #####  ##### ####    ###  #   # ###### ###### ##     ##  #####  #     #      ########    ##    #  #  #####
 	 #   # #   #  ###   #   #  #####  ###    ##     ##   ##  #  ##    #    #     #     #   ##   #  #####  ###   ###
 	 ###  #   #  ##### ####   #   #   #   ######   ##   #########  #####  ##### ##### #   ##   #  #   #  #   # #####
@@ -9569,7 +9407,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 		}
 	};
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  **/
 
@@ -9631,6 +9469,10 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
     };
 
 })();
+/**
+ * See LICENSE file.
+ */
+
 (function() {
 
     CAAT.modules.ImageUtil= function() {
@@ -9811,7 +9653,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
     };
 
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Generate interpolator.
  *
@@ -10295,7 +10137,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 })();
 
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Interpolator actor will draw interpolators on screen.
  *
@@ -10388,7 +10230,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 
     extend( CAAT.InterpolatorActor, CAAT.ActorContainer, null);
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * These classes encapsulate different kinds of paths.
  * LinearPath, defines an straight line path, just 2 points.
@@ -12041,7 +11883,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
     extend( CAAT.Path, CAAT.PathSegment, null);
 	
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * An actor to show the path and its handles in the scene graph. 
  *

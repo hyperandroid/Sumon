@@ -1,34 +1,8 @@
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Library namespace.
  * CAAT stands for: Canvas Advanced Animation Tookit.
- */
-
-/**
- * @license
- * 
- * The MIT License
- * Copyright (c) 2010-2011 Ibon Tolosana, Hyperandroid || http://labs.hyperandroid.com/
-
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
-
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
-
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
  */
 
 /**
@@ -47,7 +21,7 @@ Function.prototype.bind= function() {
     }
 };
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Behaviors are keyframing elements.
  * By using a BehaviorContainer, you can specify different actions on any animation Actor.
@@ -297,11 +271,10 @@ Function.prototype.bind= function() {
 			return this.interpolator.getPosition(time/this.behaviorDuration).y;
 		},
         /**
-         * Private.
          * Sets the behavior as expired.
          * This method must not be called directly. It is an auxiliary method to isBehaviorInTime method.
-         * @param actor a CAAT.Actor instance.
-         * @param time an integer with the scene time.
+         * @param actor {CAAT.Actor}
+         * @param time {integer} the scene time.
          *
          * @private
          */
@@ -425,9 +398,6 @@ Function.prototype.bind= function() {
 			if ( this.cycleBehavior )	{
 				behavior.expired =  false;
 			}
-/*            else {
-                this.fireBehaviorExpiredEvent( actor, time );
-            }*/
 		},
         /**
          * Implementation method of the behavior.
@@ -437,11 +407,32 @@ Function.prototype.bind= function() {
          */
 		setForTime : function(time, actor) {
 			for( var i=0; i<this.behaviors.length; i++ ) {
-				this.behaviors[i].setForTime( time, actor );
+				this.behaviors[i].setForTime( time-this.behaviorStartTime, actor );
 			}
 
             return null;
-		}
+		},
+
+        setExpired : function(actor,time) {
+            CAAT.ContainerBehavior.superclass.setExpired.call(this,actor,time);
+            // set for final interpolator value.
+            for( var i=0; i<this.behaviors.length; i++ ) {
+                if (!this.behaviors[i].expired) {
+                    this.behaviors[i].setExpired(actor,time-this.behaviorStartTime);
+                }
+            }
+            this.fireBehaviorExpiredEvent(actor,time);
+            return this;
+        },
+
+        setFrameTime : function( start, duration )  {
+            CAAT.ContainerBehavior.superclass.setFrameTime.call(this,start,duration);
+            for( var i=0; i<this.behaviors.length; i++ ) {
+                this.behaviors[i].expired= false;
+            }
+            return this;
+        }
+
 	};
 
     extend( CAAT.ContainerBehavior, CAAT.Behavior, null );
@@ -1101,14 +1092,17 @@ Function.prototype.bind= function() {
 		]
 	};
 })();/**
+ * See LICENSE file.
+ *
  * Extend a prototype with another to form a classical OOP inheritance procedure.
  *
- * @param subc Prototype to define the base class
- * @param superc Prototype to be extended (derived class).
+ * @param subc {object} Prototype to define the base class
+ * @param superc {object} Prototype to be extended (derived class).
  */
 function extend(subc, superc) {
     var subcp = subc.prototype;
 
+    // Class pattern.
     var F = function() {
     };
     F.prototype = superc.prototype;
@@ -1117,6 +1111,7 @@ function extend(subc, superc) {
     subc.superclass = superc.prototype;
     subc.prototype.constructor = subc;
 
+    // Reset constructor. See Object Oriented Javascript for an in-depth explanation of this.
     if (superc.prototype.constructor === Object.prototype.constructor) {
         superc.prototype.constructor = superc;
     }
@@ -1126,7 +1121,13 @@ function extend(subc, superc) {
     for (var method in subcp) {
         if (subcp.hasOwnProperty(method)) {
             subc.prototype[method] = subcp[method];
-/*
+
+/**
+ * Sintactic sugar to add a __super attribute on every overriden method.
+ * Despite comvenient, it slows things down by 5fps.
+ *
+ * Uncomment at your own risk.
+ *
             // tenemos en super un metodo con igual nombre.
             if ( superc.prototype[method]) {
                 subc.prototype[method]= (function(fn, fnsuper) {
@@ -1151,7 +1152,7 @@ function extend(subc, superc) {
 }
 
 /**
- * Proxy an object or wrap/decorate a function.
+ * Dynamic Proxy for an object or wrap/decorate a function.
  *
  * @param object
  * @param preMethod
@@ -1313,7 +1314,7 @@ var cp1= proxy(
             return -1;
         });
  **//**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Manages every Actor affine transformations.
  * Take into account that Canvas' renderingContext computes postive rotation clockwise, so hacks
@@ -2352,7 +2353,9 @@ var cp1= proxy(
         }
 	};
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
+ *
+ * @author: Mario Gonzalez (@onedayitwilltake) and Ibon Tolosana (@hyperandroid)
  *
  * Helper classes for color manipulation.
  *
@@ -2612,7 +2615,7 @@ var cp1= proxy(
 	};
 })();
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Rectangle Class.
  * Needed to compute Curve bounding box.
@@ -2730,7 +2733,7 @@ var cp1= proxy(
         }
 	};
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Classes to solve and draw curves.
  * Curve is the superclass of
@@ -2840,7 +2843,10 @@ var cp1= proxy(
 			if ( !rectangle ) {
 				rectangle= new CAAT.Rectangle();
 			}
-			
+
+            // thanks yodesoft.com for spotting the first point is out of the BB
+            rectangle.union( this.coordlist[0].x, this.coordlist[0].y );
+
 			var pt= new CAAT.Point();
 			for(var t=this.k;t<=1+this.k;t+=this.k){
 				this.solve(pt,t);
@@ -3229,7 +3235,7 @@ var cp1= proxy(
 
     extend(CAAT.CatmullRom, CAAT.Curve, null);
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Hold a 2D point information.
  * Think about the possibility of turning CAAT.Point into {x:,y:}.
@@ -3247,9 +3253,9 @@ var cp1= proxy(
      * @constructor
      */
 	CAAT.Point= function(xpos, ypos, zpos) {
-		this.x= xpos || 0;
-		this.y= ypos || 0;
-        this.z= zpos || 0;
+		this.x= xpos;
+		this.y= ypos;
+        this.z= zpos;
 		return this;
 	};
 	
@@ -3445,7 +3451,17 @@ var cp1= proxy(
                     " z:" + String(Math.round(Math.floor(this.z*10))/10);
 		}
 	};
-})();(function() {
+})();/**
+ * See LICENSE file.
+ *
+ * Get realtime Debug information of CAAT's activity.
+ * Set CAAT.DEBUG=1 before any CAAT.Director object creation.
+ * This class expects a DOM node called 'caat-debug' being a container element (DIV) where
+ * it will append itself. If this node is not present, it will append itself to the document's body.
+ *
+ */
+
+(function() {
 
     CAAT.Debug= function() {
         return this;
@@ -3540,7 +3556,7 @@ var cp1= proxy(
         }
     };
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Classes to define animable elements.
  * Actor is the superclass of every animable element in the scene graph. It handles the whole
@@ -3680,6 +3696,7 @@ var cp1= proxy(
          */
         setParent : function(parent) {
             this.parent= parent;
+            return this;
         },
         /**
          * Set this actor's background image.
@@ -3697,7 +3714,7 @@ var cp1= proxy(
          *
          * @see CAAT.SpriteImage
          *
-         * @param image {Image|Canvas|CAAT.SpriteImage}
+         * @param image {Image|HTMLCanvasElement|CAAT.SpriteImage}
          * @param adjust_size_to_image {boolean} whether to set this actor's size based on image parameter.
          *
          * @return this
@@ -3724,7 +3741,7 @@ var cp1= proxy(
         /**
          * Set the actor's SpriteImage index from animation sheet.
          * @see CAAT.SpriteImage
-         * @param index {integer}
+         * @param index {number}
          *
          * @return this
          */
@@ -3741,8 +3758,8 @@ var cp1= proxy(
          * The values can be either positive or negative meaning the texture space of this background
          * image does not start at (0,0) but at the desired position.
          * @see CAAT.SpriteImage
-         * @param ox {integer} horizontal offset
-         * @param oy {integer} vertical offset
+         * @param ox {number} horizontal offset
+         * @param oy {number} vertical offset
          *
          * @return this
          */
@@ -3759,7 +3776,7 @@ var cp1= proxy(
          * subimages. If you define d Sprite Image of 2x2, you'll be able to draw any of the 4 subimages.
          * This method defines the animation sequence so that it could be set [0,2,1,3,2,1] as the
          * animation sequence
-         * @param ii {array<integer>} an array of integers.
+         * @param ii {Array<number>} an array of integers.
          */
         setAnimationImageIndex : function( ii ) {
             if ( this.backgroundImage ) {
@@ -3788,8 +3805,8 @@ var cp1= proxy(
         },
         /**
          * Center this actor at position (x,y).
-         * @param x {float} x position
-         * @param y {float} y position
+         * @param x {number} x position
+         * @param y {number} y position
          *
          * @return this
          * @deprecated
@@ -3800,8 +3817,8 @@ var cp1= proxy(
         },
         /**
          * Center this actor at position (x,y).
-         * @param x {float} x position
-         * @param y {float} y position
+         * @param x {number} x position
+         * @param y {number} y position
          *
          * @return this
          */
@@ -4118,7 +4135,7 @@ var cp1= proxy(
          * The dimension will not affect the local coordinates system in opposition
          * to setSize or setBounds.
          *
-         * @param sx {float} width scale.
+         * @param sx {number} width scale.
          * @param sy {number} height scale.
          * @param anchorx {number} x anchor to perform the Scale operation.
          * @param anchory {number} y anchor to perform the Scale operation.
@@ -4168,8 +4185,8 @@ var cp1= proxy(
          * @return this
          */
 	    setSize : function( w, h )   {
-	        this.width= w>>0;
-	        this.height= h>>0;
+	        this.width= w;
+	        this.height= h;
             this.dirty= true;
 
             return this;
@@ -4177,22 +4194,17 @@ var cp1= proxy(
         /**
          * Set location and dimension of an Actor at once.
          *
-         * as http://jsperf.com/drawimage-whole-pixels states, drawing at whole pixels rocks while at subpixels sucks.
-         * thanks @pbakaus
-         *
-         * @param x a float indicating Actor's x position.
-         * @param y a float indicating Actor's y position
-         * @param w a float indicating Actor's width
-         * @param h a float indicating Actor's height
+         * @param x{number} a float indicating Actor's x position.
+         * @param y{number} a float indicating Actor's y position
+         * @param w{number} a float indicating Actor's width
+         * @param h{number} a float indicating Actor's height
          * @return this
          */
 	    setBounds : function(x, y, w, h)  {
-	        //this.x= x;
-            //this.y= y;
-            this.x= x|0;
-            this.y= y|0;
-	        this.width= w|0;
-	        this.height= h|0;
+            this.x= x;
+            this.y= y;
+	        this.width= w;
+	        this.height= h;
             this.dirty= true;
 
             return this;
@@ -4200,17 +4212,11 @@ var cp1= proxy(
         /**
          * This method sets the position of an Actor inside its parent.
          *
-         * as http://jsperf.com/drawimage-whole-pixels states, drawing at whole pixels rocks while at subpixels sucks.
-         * thanks @pbakaus
-         *
-         * @param x a float indicating Actor's x position
-         * @param y a float indicating Actor's y position
+         * @param x{number} a float indicating Actor's x position
+         * @param y{number} a float indicating Actor's y position
          * @return this
          */
 	    setLocation : function( x, y ) {
-
-            x= x|0;
-            y= y|0;
 
             this.x= x;
             this.y= y;
@@ -4226,7 +4232,7 @@ var cp1= proxy(
          * This method is called by the Director to know whether the actor is on Scene time.
          * In case it was necessary, this method will notify any life cycle behaviors about
          * an Actor expiration.
-         * @param time {integer} time indicating the Scene time.
+         * @param time {number} time indicating the Scene time.
          *
          * @private
          *
@@ -4373,6 +4379,15 @@ var cp1= proxy(
             return point;
         },
         /**
+         * Transform a local coordinate point on this Actor's coordinate system into
+         * another point in otherActor's coordinate system.
+         * @param point {CAAT.Point}
+         * @param otherActor {CAAT.Actor}
+         */
+        modelToModel : function( point, otherActor )   {
+            return otherActor.viewToModel( this.modelToView( point ) );
+        },
+        /**
          * Transform a point from model to view space.
          * <p>
          * WARNING: every call to this method calculates
@@ -4397,7 +4412,7 @@ var cp1= proxy(
          *
          * @return null if the point is not inside the Actor. The Actor otherwise.
          */
-	    findActorAtPosition : function(point,screenPoint) {
+	    findActorAtPosition : function(point) {
 			if ( !this.mouseEnabled || !this.isInAnimationFrame(this.time) ) {
 				return null;
 			}
@@ -4624,7 +4639,15 @@ var cp1= proxy(
                 }
             }
 
-            this.setModelViewMatrix(director);
+
+            // transformation stuff.
+            this.wdirty= false;
+            this.setModelViewMatrix();
+            if ( director.glEnabled && (this.dirty || this.wdirty) ) {
+                this.setScreenBounds();
+            }
+            this.dirty= false;
+
 
             this.inFrame= true;
 
@@ -4635,8 +4658,8 @@ var cp1= proxy(
          * 
          * @return this
          */
-        setModelViewMatrix : function(director) {
-            this.wdirty= false;
+        setModelViewMatrix : function() {
+
             if ( this.dirty ) {
 
                 this.modelViewMatrix.identity();
@@ -4644,8 +4667,11 @@ var cp1= proxy(
                 var m= this.tmpMatrix.identity();
                 var mm= this.modelViewMatrix.matrix;
                 //this.modelViewMatrix.multiply( m.setTranslate( this.x, this.y ) );
-                mm[2]+= this.x;
-                mm[5]+= this.y;
+
+                // As http://jsperf.com/drawimage-whole-pixels states,
+                // drawing at whole pixels rocks while at subpixels sucks. thanks @pbakaus
+                mm[2]+= this.x>>0;
+                mm[5]+= this.y>>0;
 
                 if ( this.rotationAngle ) {
 //                    this.modelViewMatrix.multiply( m.setTranslate( this.rotationX, this.rotationY) );
@@ -4692,13 +4718,6 @@ var cp1= proxy(
                 this.worldModelViewMatrix.copy( this.modelViewMatrix );
             }
             
-            // FIX: optimizar las coordenadas proyectadas: solo calcular si cambia mi matrix o la del parent.
-            if ( director.glEnabled && (this.dirty || this.wdirty) ) {
-                this.setScreenBounds();
-            }
-
-            this.dirty= false;
-
             return this;
         },
         /**
@@ -4936,15 +4955,17 @@ var cp1= proxy(
                 var iDisabled=  0;
                 var iCurrent=   0;
                 var fnOnClick=  null;
-                var enabled=    true;
-                var me=         this;
-
-                me.dragging=   false;
 
                 button.enabled= true;
                 button.setEnabled= function( enabled ) {
                     this.enabled= enabled;
                 };
+
+                button.actionPerformed= function(event) {
+                    if ( this.enabled && null!==fnOnClick ) {
+                        fnOnClick(this);
+                    }
+                }
 
                 button.setBackgroundImage(buttonImage, true);
                 iNormal=       _iNormal || 0;
@@ -4979,9 +5000,6 @@ var cp1= proxy(
                 };
 
                 button.mouseClick= function(mouseEvent) {
-                    if ( this.enabled && null!==fnOnClick ) {
-                        fnOnClick(this);
-                    }
                 };
 
                 button.mouseDrag= function(mouseEvent)  {
@@ -5254,6 +5272,7 @@ var cp1= proxy(
 
             child.parent= this;
             this.childrenList.push(child);
+            child.dirty= true;
             return this;
 		},
         /**
@@ -5283,6 +5302,7 @@ var cp1= proxy(
             }
 
 			child.parent= this;
+            child.dirty= true;
 			this.childrenList.splice(index, 0, child);
 
             return this;
@@ -6665,7 +6685,7 @@ var cp1= proxy(
 
     extend( CAAT.IMActor, CAAT.ActorContainer, null);
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Sound implementation.
  */
@@ -7034,7 +7054,7 @@ var cp1= proxy(
         }
     };
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * In this file we'll be adding every useful Actor that is specific for certain purpose.
  *
@@ -7344,7 +7364,7 @@ var cp1= proxy(
 
 })();
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  **/
 
@@ -7449,6 +7469,7 @@ var cp1= proxy(
         RESIZE_BOTH:        8,
         RESIZE_PROPORTIONAL:16,
         resize:             1,
+        onResizeCallback:   null,
 
         checkDebug : function() {
             if ( CAAT.DEBUG ) {
@@ -7474,6 +7495,11 @@ var cp1= proxy(
                     this.setScaleProportional(w,h);
                     break;
             }
+
+            if ( this.onResizeCallback )    {
+                this.onResizeCallback( this, w, h );
+            }
+
         },
         setScaleProportional : function(w,h) {
 
@@ -7491,17 +7517,27 @@ var cp1= proxy(
             }
         },
         /**
-         * Enable window resize events and set redimension policy.
+         * Enable window resize events and set redimension policy. A callback functio could be supplied
+         * to be notified on a Director redimension event. This is necessary in the case you set a redim
+         * policy not equal to RESIZE_PROPORTIONAL. In those redimension modes, director's area and their
+         * children scenes are resized to fit the new area. But scenes content is not resized, and have
+         * no option of knowing so uless an onResizeCallback function is supplied.
+         *
          * @param mode {number}  RESIZE_BOTH, RESIZE_WIDTH, RESIZE_HEIGHT, RESIZE_NONE.
+         * @param onResizeCallback {function(director{CAAT.Director}, width{integer}, height{integer})} a callback
+         * to notify on canvas resize.
          */
-        enableResizeEvents : function(mode) {
+        enableResizeEvents : function(mode, onResizeCallback) {
             if (mode === this.RESIZE_BOTH || mode === this.RESIZE_WIDTH || mode === this.RESIZE_HEIGHT || mode===this.RESIZE_PROPORTIONAL) {
                 this.referenceWidth= this.width;
                 this.referenceHeight=this.height;
                 this.resize = mode;
                 CAAT.registerResizeListener(this);
+                this.onResizeCallback= onResizeCallback;
+                this.windowResized( window.innerWidth, window.innerHeight );
             } else {
                 CAAT.unregisterResizeListener(this);
+                this.onResizeCallback= null;
             }
         },
         /**
@@ -8597,6 +8633,10 @@ var cp1= proxy(
                             pos = me.lastSelectedActor.viewToModel(
                                     new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
 
+                            if ( me.lastSelectedActor.actionPerformed && me.lastSelectedActor.contains(pos.x, pos.y) ) {
+                                me.lastSelectedActor.actionPerformed(e)
+                            }
+
                             me.lastSelectedActor.mouseUp(
                                     new CAAT.MouseEvent().init(
                                             pos.x,
@@ -8606,7 +8646,7 @@ var cp1= proxy(
                                             me.screenMousePoint));
                         }
 
-                        if (null !== me.lastSelectedActor) {
+                        if (!me.dragging && null !== me.lastSelectedActor) {
                             if (me.lastSelectedActor.contains(pos.x, pos.y)) {
                                 me.lastSelectedActor.mouseClick(
                                     new CAAT.MouseEvent().init(
@@ -8743,7 +8783,7 @@ var cp1= proxy(
 
                             /**
                              * Element has not moved after drag, so treat it as a button.
-                             * 
+                             *
                              */
                             if ( px===me.lastSelectedActor.x && py===me.lastSelectedActor.y )   {
                                 me.lastSelectedActor.viewToModel( p );
@@ -8775,44 +8815,41 @@ var cp1= proxy(
                         }
 
                         in_= true;
-                        
+
                         var lactor = me.findActorAtPosition(
                                 me.mousePoint,
                                 new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
-                        var pos = lactor.viewToModel(new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
 
                         // cambiamos de actor.
                         if (lactor !== me.lastSelectedActor) {
                             if (null !== me.lastSelectedActor) {
-                                var posExit = me.lastSelectedActor.viewToModel(
-                                        new CAAT.Point(me.mousePoint.x, me.mousePoint.y, 0));
                                 me.lastSelectedActor.mouseExit(
-                                        new CAAT.MouseEvent().init(
-                                                posExit.x,
-                                                posExit.y,
-                                                e,
-                                                me.lastSelectedActor,
-                                                me.screenMousePoint));
+                                    new CAAT.MouseEvent().init(
+                                        me.mousePoint.x,
+                                        me.mousePoint.y,
+                                        e,
+                                        me.lastSelectedActor,
+                                        me.screenMousePoint));
                             }
                             if (null !== lactor) {
                                 lactor.mouseEnter(
-                                        new CAAT.MouseEvent().init(
-                                                pos.x,
-                                                pos.y,
-                                                e,
-                                                lactor,
-                                                me.screenMousePoint));
+                                    new CAAT.MouseEvent().init(
+                                        me.mousePoint.x,
+                                        me.mousePoint.y,
+                                        e,
+                                        lactor,
+                                        me.screenMousePoint));
                             }
                         }
                         me.lastSelectedActor = lactor;
                         if (null !== lactor) {
                             me.lastSelectedActor.mouseMove(
-                                    new CAAT.MouseEvent().init(
-                                            pos.x,
-                                            pos.y,
-                                            e,
-                                            me.lastSelectedActor,
-                                            me.screenMousePoint));
+                                new CAAT.MouseEvent().init(
+                                    me.mousePoint.x,
+                                    me.mousePoint.y,
+                                    e,
+                                    me.lastSelectedActor,
+                                    me.screenMousePoint));
                         }
                     },
                     false);
@@ -8921,16 +8958,13 @@ var cp1= proxy(
 
  this.flip( currentSceneIndex-1, time );
  },*//**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * MouseEvent is a class to hold necessary information of every mouse event related to concrete
  * scene graph Actors.
  *
  * Here it is also the logic to on mouse events, pump the correct event to the appropiate scene
  * graph Actor.
- *
- * 20101008 Hyperandroid. changed event scope from CAAT.director.canvas to window. Works under
- *          al major browsers on linux and win7. Thanks @alteredq for this tip.
  *
  * TODO: add events for event pumping:
  *  + cancelBubling
@@ -9096,12 +9130,15 @@ CAAT.GlobalEnableEvents= function __GlobalEnableEvents() {
                 CAAT.KEY_MODIFIERS.alt= true;
             } else {
                 for( var i=0; i<CAAT.keyListeners.length; i++ ) {
-                    CAAT.keyListeners[i](key,'down',
+                    CAAT.keyListeners[i](
+                        key,
+                        'down',
                         {
                             alt:        CAAT.KEY_MODIFIERS.alt,
                             control:    CAAT.KEY_MODIFIERS.control,
                             shift:      CAAT.KEY_MODIFIERS.shift
-                        });
+                        },
+                        evt);
                 }
             }
         },
@@ -9119,12 +9156,15 @@ CAAT.GlobalEnableEvents= function __GlobalEnableEvents() {
             } else {
 
                 for( var i=0; i<CAAT.keyListeners.length; i++ ) {
-                    CAAT.keyListeners[i](key,'up',
+                    CAAT.keyListeners[i](
+                        key,
+                        'up',
                         {
                             alt:        CAAT.KEY_MODIFIERS.alt,
                             control:    CAAT.KEY_MODIFIERS.control,
                             shift:      CAAT.KEY_MODIFIERS.shift
-                        });
+                        },
+                        evt);
                 }
             }
         },
@@ -9264,7 +9304,7 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
     }
 */
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * TODO: allow set of margins, spacing, etc. to define subimages.
  *
@@ -10043,7 +10083,7 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
 
     };
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Image/Resource preloader.
  *
@@ -10122,7 +10162,9 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
         }
 
     };
-})();
+})();/**
+ * See LICENSE file.
+ */
 (function() {
     /**
      * This class defines a timer action which is constrained to Scene time, so every Scene has the
@@ -10230,7 +10272,7 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
     };
 })();
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+* See LICENSE file.
  *
  */
 
@@ -10723,6 +10765,8 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
 
     extend( CAAT.Scene, CAAT.ActorContainer, null);
 })();/**
+ * See LICENSE file.
+ *
  * @author  Mario Gonzalez || http://onedayitwillmake.com
  *
  **/
@@ -10737,6 +10781,8 @@ CAAT.modules = CAAT.modules || {};
  * @namespace
  */
 CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
+ * See LICENSE file.
+ *
 	  ####  #####  ##### ####    ###  #   # ###### ###### ##     ##  #####  #     #      ########    ##    #  #  #####
 	 #   # #   #  ###   #   #  #####  ###    ##     ##   ##  #  ##    #    #     #     #   ##   #  #####  ###   ###
 	 ###  #   #  ##### ####   #   #   #   ######   ##   #########  #####  ##### ##### #   ##   #  #   #  #   # #####
@@ -10886,6 +10932,9 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 		}
 	};
 })();/**
+ *
+ * See LICENSE file.
+ * 
 	  ####  #####  ##### ####    ###  #   # ###### ###### ##     ##  #####  #     #      ########    ##    #  #  #####
 	 #   # #   #  ###   #   #  #####  ###    ##     ##   ##  #  ##    #    #     #     #   ##   #  #####  ###   ###
 	 ###  #   #  ##### ####   #   #   #   ######   ##   #########  #####  ##### ##### #   ##   #  #   #  #   # #####
@@ -11248,7 +11297,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 		}
 	};
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  **/
 
@@ -11310,6 +11359,10 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
     };
 
 })();
+/**
+ * See LICENSE file.
+ */
+
 (function() {
 
     CAAT.modules.ImageUtil= function() {
@@ -11489,43 +11542,44 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
         }
     };
 
-})();
+})();/**
+ * See LICENSE file.
+ */
+
 (function() {
     CAAT.modules.LayoutUtils= {};
 
     CAAT.modules.LayoutUtils.row= function( dst, what_to_layout_array, constraint_object ) {
-        var actors= what_to_layout_array;
-        var co= constraint_object;
 
         var width= dst.width;
         var x=0, y=0, i=0, l=0;
         var actor_max_h= Number.MIN_VALUE, actor_max_w= Number.MAX_VALUE;
 
         // compute max/min actor list size.
-        for( i=actors.length-1; i; i-=1 ) {
-            if ( actor_max_w<actors[i].width ) {
-                actor_max_w= actors[i].width;
+        for( i=what_to_layout_array.length-1; i; i-=1 ) {
+            if ( actor_max_w<what_to_layout_array[i].width ) {
+                actor_max_w= what_to_layout_array[i].width;
             }
-            if ( actor_max_h<actors[i].height ) {
-                actor_max_h= actors[i].height;
+            if ( actor_max_h<what_to_layout_array[i].height ) {
+                actor_max_h= what_to_layout_array[i].height;
             }
         }
 
-        if ( co.padding_left ) {
-            x= co.padding_left;
+        if ( constraint_object.padding_left ) {
+            x= constraint_object.padding_left;
             width-= x;
         }
-        if ( co.padding_right ) {
-            width-= co.padding_right;
+        if ( constraint_object.padding_right ) {
+            width-= constraint_object.padding_right;
         }
 
-        if ( co.top ) {
-            var top= parseInt(co.top, 10);
+        if ( constraint_object.top ) {
+            var top= parseInt(constraint_object.top, 10);
             if ( !isNaN(top) ) {
                 y= top;
             } else {
                 // not number
-                switch(co.top) {
+                switch(constraint_object.top) {
                     case 'center':
                         y= (dst.height-actor_max_h)/2;
                         break;
@@ -11535,24 +11589,24 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
                     case 'bottom':
                         y= dst.height-actor_max_h;
                         break;
-                    defatul:
+                    default:
                         y= 0;
                 }
             }
         }
 
         // space for each actor
-        var actor_area= width / actors.length;
+        var actor_area= width / what_to_layout_array.length;
 
-        for( i=0, l=actors.length; i<l; i++ ) {
-            actors[i].setLocation(
-                x + i * actor_area + (actor_area - actors[i].width) / 2,
+        for( i=0, l=what_to_layout_array.length; i<l; i++ ) {
+            what_to_layout_array[i].setLocation(
+                x + i * actor_area + (actor_area - what_to_layout_array[i].width) / 2,
                 y);
         }
 
     };
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Generate interpolator.
  *
@@ -12036,7 +12090,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 })();
 
 /**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * Interpolator actor will draw interpolators on screen.
  *
@@ -12129,7 +12183,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 
     extend( CAAT.InterpolatorActor, CAAT.ActorContainer, null);
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * These classes encapsulate different kinds of paths.
  * LinearPath, defines an straight line path, just 2 points.
@@ -13782,7 +13836,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
     extend( CAAT.Path, CAAT.PathSegment, null);
 	
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * An actor to show the path and its handles in the scene graph. 
  *
@@ -13886,7 +13940,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 
     extend( CAAT.PathActor, CAAT.ActorContainer, null);
 })();/**
- * @author  Hyperandroid  ||  http://hyperandroid.com/
+ * See LICENSE file.
  *
  * This file contains some image processing effects.
  * Currently contains the following out-of-the-box effects:
@@ -14032,6 +14086,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
                 data[i*4+2]= b;
                 data[i*4+3]= a;
             }
+this.imageData.data= data;
 
             return this;
         },
@@ -14051,6 +14106,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
          */
         apply : function(director, time) {
             if ( null!==this.imageData ) {
+this.imageData.data= this.bufferImage;
                 this.ctx.putImageData(this.imageData, 0, 0);
             }
             return this;
@@ -14196,6 +14252,12 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 	        this.tpos1 = this.pos1;
 	        this.tpos2 = this.pos2;
 
+            var bi= this.bufferImage;
+            var cm= this.m_colorMap;
+            var wt= this.wavetable;
+            var z;
+            var cmz;
+
 	        for (var x=0; x<this.height; x++) {
                 this.tpos3 = this.pos3;
                 this.tpos4 = this.pos4;
@@ -14213,16 +14275,13 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
                     if ( this.b3 ) o3= -o3;
                     if ( this.b4 ) o4= -o4;
 
-                    var z = Math.floor(
-                        this.wavetable[o1&255] +
-                        this.wavetable[o2&255] +
-                        this.wavetable[o3&255] +
-                        this.wavetable[o4&255] );
+                    z = Math.floor( wt[o1&255] + wt[o2&255] + wt[o3&255] + wt[o4&255] );
+                    cmz= cm[z];
 
-                    this.bufferImage[ v++ ]= this.m_colorMap[z][0];
-                    this.bufferImage[ v++ ]= this.m_colorMap[z][1];
-                    this.bufferImage[ v++ ]= this.m_colorMap[z][2];
-                    this.bufferImage[ v++ ]= this.m_colorMap[z][3];
+                    bi[ v++ ]= cmz[0];
+                    bi[ v++ ]= cmz[1];
+                    bi[ v++ ]= cmz[2];
+                    bi[ v++ ]= cmz[3];
 
                     this.tpos3 += this.i1;
                     this.tpos3&=255;
@@ -14644,22 +14703,26 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
             var i = (((this.width >> 1) << 8)  - ddx * ww + ddy * hh)&0xffff;
             var j = (((this.height >> 1) << 8) - ddy * ww - ddx * hh) & 0xffff;
 
-            var srcwidth= this.sourceImageData.width;
-            var srcheight= this.sourceImageData.height;
-            var srcdata= this.sourceImageData.data;
+            var srcwidth=   this.sourceImageData.width;
+            var srcheight=  this.sourceImageData.height;
+            var srcdata=    this.sourceImageData.data;
+            var bi=         this.bufferImage;
+            var dstoff;
+            var addx;
+            var addy;
 
             while (off < this.width * this.height * 4) {
-                var addx = i;
-                var addy = j;
+                addx = i;
+                addy = j;
 
                 for (var m = 0; m < this.width; m++) {
-                    var dstoff = ((addy >> this.shift) & this.mask) * srcwidth + ((addx >> this.shift) & this.mask);
+                    dstoff = ((addy >> this.shift) & this.mask) * srcwidth + ((addx >> this.shift) & this.mask);
                     dstoff <<= 2;
 
-                    this.bufferImage[ off++ ] = srcdata[ dstoff++ ];
-                    this.bufferImage[ off++ ] = srcdata[ dstoff++ ];
-                    this.bufferImage[ off++ ] = srcdata[ dstoff++ ];
-                    this.bufferImage[ off++ ] = srcdata[ dstoff++ ];
+                    bi[ off++ ] = srcdata[ dstoff++ ];
+                    bi[ off++ ] = srcdata[ dstoff++ ];
+                    bi[ off++ ] = srcdata[ dstoff++ ];
+                    bi[ off++ ] = srcdata[ dstoff++ ];
 
                     addx += ddx;
                     addy += ddy;
@@ -14712,7 +14775,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
     extend( CAAT.IMRotoZoom, CAAT.ImageProcessor, null);
 
 })();/**
- *
+ * See LICENSE file.
  */
 
 
@@ -15143,7 +15206,12 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
     };
 
     extend( CAAT.TextureProgram, CAAT.Program, null );
-})();//
+})();/**
+ * See LICENSE file.
+ *
+ */
+
+//
 // gluPerspective
 //
 function makePerspective(fovy, aspect, znear, zfar, viewportHeight) {
@@ -15189,7 +15257,9 @@ function makeOrtho(left, right, bottom, top, znear, zfar) {
             ]);
 }
 
-
+/**
+ * See LICENSE file.
+ */
 (function() {
 
     CAAT.GLTextureElement = function() {

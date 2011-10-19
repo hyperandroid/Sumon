@@ -141,16 +141,16 @@ function __end_loading(director) {
 
 function __Hypernumbers_init()   {
 
-//CAAT.DEBUG=1;
-
-
+CAAT.DEBUG=1;
+/*
     var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
     director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
+    */
 
-/*
     var director = new CAAT.Director().initialize(700,500).setClear(false);
     document.getElementById('game').appendChild(director.canvas);
-*/
+//    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
+
     CAAT.browser= navigator.browser;
     HN.director= director;
 
@@ -165,11 +165,6 @@ function __Hypernumbers_init()   {
         function( counter, images ) {
 
             if ( counter==images.length ) {
-/*
-                if ( director.getRenderType()!='CSS') {
-                    images[0].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,24,images[0].image);
-                }
-*/
                 director.setImagesCache(images);
                 var scene_loading= __CAAT__loadingScene(director);
 

@@ -966,7 +966,6 @@
                         if ( this.timer!=null ) {
                             this.timer.cancel();
                             this.timer= null;
-
                             this.currentOffset= this.backgroundImage.offsetY;
                             this.addBehavior(
                                     new CAAT.GenericBehavior().
@@ -991,21 +990,23 @@
         },
         startTimer : function() {
             var me= this;
-            this.timer= this.scene.createTimer(
-                me.scene.time,
-                200,
-                function timeout(sceneTime, time, timerTask) {
+            if ( !this.timer ) {
+                this.timer= this.scene.createTimer(
+                    me.scene.time,
+                    200,
+                    function timeout(sceneTime, time, timerTask) {
 
-                    me.currentAltitude+= me.altitude;
-                    if ( me.currentAltitude>0 ) {
-                        me.currentAltitude=0;
-                    }
-                    me.setBackgroundImageOffset( 0, me.currentAltitude>>0 );
-                    timerTask.reset( me.scene.time );
-                    me.context.incrementAltitude( me.altitudeMeterByIncrement );
-                },
-                null,
-                null );
+                        me.currentAltitude+= me.altitude;
+                        if ( me.currentAltitude>0 ) {
+                            me.currentAltitude=0;
+                        }
+                        me.setBackgroundImageOffset( 0, me.currentAltitude>>0 );
+                        timerTask.reset( me.scene.time );
+                        me.context.incrementAltitude( me.altitudeMeterByIncrement );
+                    },
+                    null,
+                    null );
+            }
         },
         setInitialOffset : function( offset ) {
             this.setBackgroundImageOffset( 0, offset );
