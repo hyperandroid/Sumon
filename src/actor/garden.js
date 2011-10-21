@@ -538,9 +538,10 @@
                         setAnimationImageIndex([index]);
 
                 var c= new CAAT.ActorContainer().create().setBounds(
-                        dw + w*index, 230,
-                        Math.max( m[index].singleWidth, text.singleWidth),
-                        m[index].singleWidth+text.singleHeight );
+                    dw + w*index,
+                    me.director.width>me.director.height ? me.director.height/2- 10 : me.director.height/2-100,
+                    Math.max( m[index].singleWidth, text.singleWidth),
+                    m[index].singleWidth+text.singleHeight );
 
                 var b= new CAAT.Actor().
                         setAsButton(m[index], 0,1,2,0, function() {
@@ -592,12 +593,10 @@
 
             var imgb= director.getImage('background-2');
             this.directorScene.addChild(
-                    new CAAT.Actor().
-                            setBounds(0,0,dw,dh).
-                            setBackgroundImage(imgb).
-                            setBackgroundImageOffset( 0, -imgb.height+dh )//.
-//                            setClip(true)
-                    );
+                new CAAT.Actor().
+                        setBounds(0,0,dw,dh).
+                        setBackgroundImage(imgb)
+            );
 
             ///////////// some clouds
             for( i=0; i<5; i++ ) {
@@ -613,12 +612,7 @@
             var ovniImage= new CAAT.SpriteImage().initialize( director.getImage('ovni'), 1, 2 );
 
             var smokeImage;
-            /*
-            if ( director.getRenderType()!='CSS' ) {*/
-                smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 32,1 );
-            /*} else {
-                smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 1,1 );
-            }*/
+            smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 32,1 );
 
             var TT=1000;
             if ( director.glEnabled ) {
@@ -679,13 +673,6 @@
                                                                         setFrameTime(time, this.smokeTime).
                                                                         setValues( .5,1.5, .5,1.5 )
                                                             );
-                                                    /*
-                                                    if ( director.getRenderType()==='CSS' ) {
-                                                        humo.addBehavior(
-                                                            new CAAT.AlphaBehavior().
-                                                                    setFrameTime(time, this.smokeTime).
-                                                                    setValues( 1, 0 ));
-                                                    } else {*/
                                                         humo.addBehavior(
                                                             new CAAT.GenericBehavior().
                                                                     setFrameTime(time, this.smokeTime).
@@ -693,8 +680,6 @@
                                                                         actor.setAnimationImageIndex( [31-((value*31)>>0)] );
                                                                     })
                                                         );
-                                                    /*}
-*/
                                                     ovnitrail.addChild(humo);
 
                                                     this.prevTime= time;
@@ -714,7 +699,7 @@
                         new HN.Garden().
                                 create().
                                 setBounds(0,0,dw,dh).
-                                initialize( director.ctx, gardenSize, dh*.3 )
+                                initialize( director.ctx, gardenSize, dh*.5 )
                         );
             }
 
@@ -731,7 +716,6 @@
                 scores=new CAAT.Actor().
                     setAsButton( this.buttonImage.getRef(), 18,19,20,18, function() {
                         director.audioPlay('11');
-                        //__enterCSS( document.getElementById('scores'), 700,0, 0,0, me.directorScene);
                     }).
                     setBounds( dw-bw-10, dh-bh-10, bw, bh );
             }
@@ -763,6 +747,8 @@
                             })
                     );
             };
+
+            this.soundControls(director);
 
             var info= new CAAT.Actor().
                     setAsButton(info_howto_ci.getRef(), 0,1,2,0,
@@ -827,6 +813,20 @@
                         }).
                     setBounds( 10, dh-10-ihh-ihh-5, ihw, ihh );
 
+            if ( director.width<director.height ) {
+                CAAT.modules.LayoutUtils.row(
+                    this.directorScene,
+                    [
+                        info,
+                        howto
+                    ],
+                    {
+                        padding_left:   195,
+                        padding_right:  195,
+                        top:            director.height/2+100
+                    });
+            }
+
             this.createModeButtons();
 
             this.directorScene.addChild(info);
@@ -836,9 +836,18 @@
             }
 
 
+            var logoi= director.getImage('logo');
             var logo= new CAAT.Actor().
-                    setBackgroundImage(director.getImage('logo'), true).
-                    setFrameTime( 1500, Number.MAX_VALUE );
+                    setBackgroundImage(logoi).
+                    setFrameTime( 1500, Number.MAX_VALUE ).
+                    enableEvents(false);
+            if ( director.width<director.height ) {
+                logo.
+                    setBackgroundImage(logoi, false).
+                    setSize( logoi.width*.8, logoi.height*.8 ).
+                    setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE );
+            }
+
             var xp= (dw - logo.width)/2;
             logo.addBehavior(
                     new CAAT.PathBehavior().
@@ -865,13 +874,13 @@
                 madeWith.setBackgroundImage(madeWithCI, true);
 
             }
-            madeWith.setLocation( dw-90, 0 );
+            madeWith.setLocation( dw-( director.width>director.height ? 100 : madeWithCI.singleWidth), 0 );
             this.directorScene.addChild(madeWith);
 
             this.directorScene.addChild(_info);
             this.directorScene.addChild(_howto);
 
-            this.soundControls(director);
+
 
             return this;
         },
@@ -923,6 +932,21 @@
 
             this.directorScene.addChild(sound);
             this.directorScene.addChild(music);
+
+            if ( director.width<director.height ) {
+                CAAT.modules.LayoutUtils.row(
+                    this.directorScene,
+                    [
+                        music,
+                        sound
+                    ],
+                    {
+                        padding_left:   195,
+                        padding_right:  195,
+                        top:            director.height/2+150
+                    });
+            }
+
 
             this.music= music;
             this.sound= sound;

@@ -2,21 +2,30 @@ function __CAAT__loadingScene(director) {
 
     var scene= director.createScene();
 
-    var TIME= 5000;
+    var TIME= 12000;
     var time= new Date().getTime();
 
     var background= new CAAT.ActorContainer().
-            setBackgroundImage( director.getImage('splash'), true);
+            setBackgroundImage( director.getImage('splash0'), true).
+        addBehavior(
+            new CAAT.GenericBehavior().
+                setFrameTime(TIME/2, 0).
+                setValues( 1, 0, null, null, function(value,target,actor) {
+                    actor.setBackgroundImage( director.getImage('splash1'), true )
+                })
+        );
     scene.addChild(background);
 
     var lading= new CAAT.Actor().
-            setBackgroundImage( director.getImage('lading'), true);
+        setBackgroundImage( director.getImage('lading'), true).
+        enableEvents(false);
     lading.setLocation( director.width-lading.width-10, director.height-lading.height-30 );
     scene.addChild(lading);
 
     var rueda=  new CAAT.Actor().
-            setBackgroundImage( director.getImage('rueda'), true).
-            setLocation( lading.x+20, lading.y+10 );
+        setBackgroundImage( director.getImage('rueda'), true).
+        setLocation( lading.x+20, lading.y+10 ).
+        enableEvents(false);
     scene.addChild(rueda);
     rueda.addBehavior(
             new CAAT.RotateBehavior().
@@ -32,8 +41,8 @@ function __CAAT__loadingScene(director) {
     var mouseStars= function(mouseEvent) {
 
         for( var i=0; i<3; i++ ) {
-            var offset0= Math.random()*10*(Math.random()<.5?1:-1);
-            var offset1= Math.random()*10*(Math.random()<.5?1:-1);
+            var offset0= Math.random()*10*(Math.random()<.5?1:-1) + mouseEvent.point.x;
+            var offset1= Math.random()*10*(Math.random()<.5?1:-1) +mouseEvent.point.y;
 
             var iindex= (Math.random()*6)>>0;
             var actorStar= new CAAT.Actor();
@@ -42,7 +51,7 @@ function __CAAT__loadingScene(director) {
             actorStar.
                     setBackgroundImage(
                         starsImage.getRef().setAnimationImageIndex( [(Math.random()*6)>>0] ), true ).
-                    setLocation( offset0+mouseEvent.point.x, offset1+mouseEvent.point.y).
+                    setLocation( offset0, offset1 ).
                     setDiscardable(true).
                     enableEvents(false).
                     setFrameTime(scene.time, T).
@@ -142,25 +151,33 @@ function __end_loading(director) {
 function __Hypernumbers_init()   {
 
 CAAT.DEBUG=1;
-/*
-    var director = new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear(false);
-    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
-    */
+    //var director = new CAAT.Director().initialize(500,750,document.getElementById('game')).setClear(false);
 
-    var director = new CAAT.Director().initialize(700,500).setClear(false);
+//    CAAT.browser= 'iOS'; //navigator.browser;
+
+    var director;
+    if ( window.innerWidth>window.innerHeight ) {
+        director= new CAAT.Director().initialize(700,500).setClear(false);
+    } else {
+        director= new CAAT.Director().initialize(500,750).setClear(false);
+    }
+
+
     document.getElementById('game').appendChild(director.canvas);
+
 //    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
 
-    CAAT.browser= navigator.browser;
     HN.director= director;
+
+    var ni= director.width>director.height;
 
     new CAAT.ImagePreloader().loadImages(
         [
             {id:'stars',    url:'res/img/stars.png'},
-            {id:'splash',   url:'res/splash/splash.png'},
+            {id:'splash0',  url: ni ? 'res/splash/splash0.png' : 'res/splash/splash0-i.png'},
+            {id:'splash1',  url: ni ? 'res/splash/splash1.png' : 'res/splash/splash1-i.png'},
             {id:'lading',   url:'res/splash/lading.png'},
-            {id:'rueda',    url:'res/splash/rueda.png'},
-            {id:'start',    url:'res/splash/start.png'}
+            {id:'rueda',    url:'res/splash/rueda.png'}
         ],
         function( counter, images ) {
 
@@ -178,7 +195,7 @@ CAAT.DEBUG=1;
                         {id:'numberssmall',     url:'res/img/numbers_s.png'},
                         {id:'madewith',         url:'res/img/madewith.png'},
                         {id:'background-1',     url:'res/img/fondo1.png'},
-                        {id:'background-2',     url:'res/img/fondo2.png'},
+                        {id:'background-2',     url: ni ? 'res/img/fondo2.png' : 'res/img/fondo2inv.png'},
                         {id:'background_op',    url:'res/img/gameover.png'},
                         {id:'cloud0',           url:'res/img/nube1.png'},
                         {id:'cloud1',           url:'res/img/nube2.png'},
@@ -189,10 +206,13 @@ CAAT.DEBUG=1;
                         {id:'cloudb2',          url:'res/img/nubefondo3.png'},
                         {id:'cloudb3',          url:'res/img/nubefondo4.png'},
                         {id:'level',            url:'res/img/level.png'},
+                        {id:'level-small',      url:'res/img/levelsmall.png'},
+                        {id:'boton-salir',      url:'res/img/boton_salir.png'},
                         {id:'points',           url:'res/img/score.png'},
                         {id:'time',             url:'res/img/time.png'},
                         {id:'timeprogress',     url:'res/img/time_progress.png'},
-                        {id:'multiplier',       url:'res/img/x.png'},
+                        {id:'multiplier',       url: ni ? 'res/img/x.png' : 'res/img/xsmall.png'},
+                        {id:'multiplier-star',  url:'res/img/multiplicador.png'},
                         {id:'tweet',            url:'res/img/tweet.png'},
                         {id:'ovni',             url:'res/img/ovni.png'},
                         {id:'logo',             url:'res/img/logo_menu.png'},
@@ -214,8 +234,9 @@ CAAT.DEBUG=1;
                         {id:'rclock-tick',      url:'res/img/rclock_tick.png'},
                         {id:'rclock-arrow',     url:'res/img/rclock_arrow.png'},
                         {id:'bolas',            url:'res/img/bolas.png'},
-                        {id:'info',             url:'res/big/about.png'},
-                        {id:'howto',            url:'res/big/tutorial.png'}
+                        {id:'info',             url: ni ? 'res/big/about.png' : 'res/big/about-i.png'},
+                        {id:'howto',            url: ni ? 'res/big/tutorial.png' : 'res/big/tutorial-i.png'},
+                        {id:'target-number',    url:'res/img/target.png'}
                     ],
 
                     function( counter, images ) {

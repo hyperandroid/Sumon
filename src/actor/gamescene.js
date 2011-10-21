@@ -356,7 +356,7 @@
             var iarrow= director.getImage('rclock-arrow');
             var me= this;
 
-            this.setBounds(2,2,64,64);
+            this.setSize(64,64);
 
             var bg= new CAAT.Actor().
                     setBackgroundImage( ibg, true ).
@@ -480,20 +480,31 @@
         numbers:        null,
         tmpnumbers:     null,
 
+        container:      null,
         actors:         null,
 
-        setNumbersImage : function( image ) {
+        setNumbersImage : function( image, bg ) {
+
+            this.setBackgroundImage(bg);
             this.numbersImage= image;
+
+            this.container= new CAAT.ActorContainer()
+                .setBounds( 10,0,this.width,this.height);
+            this.addChild( this.container );
+
+            this.offsetX= (this.width - 2 * (image.singleWidth-30)) / 2;
+            this.offsetY= 10 + (this.height - image.singleHeight) / 2;
 
             for( var i=0; i<2; i++ ) {
                 var digit=
-                        new CAAT.Actor().
-                                setBackgroundImage(image.getRef(), true).
-                                setLocation(0,this.offsetY).
-                                setVisible(false);
+                    new CAAT.Actor()
+                        .setBackgroundImage(image.getRef(), true)
+                        .setLocation(this.offsetX,this.offsetY)
+                        .setVisible(false)
+                    ;
                 
                 this.actors.push(digit);
-                this.addChild(digit);
+                this.container.addChild(digit).setGlobalAlpha(true);
             }
 
 
@@ -533,8 +544,8 @@
                             this.actors[i].setAnimationImageIndex([this.numbers[i]]);
                         }
 
-                        this.emptyBehaviorList();
-                        this.addBehavior(
+                        this.container.emptyBehaviorList();
+                        this.container.addBehavior(
                             new CAAT.AlphaBehavior().
                                 setFrameTime( this.time, 250 ).
                                 setValues(0,1).
@@ -544,8 +555,8 @@
                         me.tmpnumbers= me.numbers;
 
                     } else {
-                        this.emptyBehaviorList();
-                        this.addBehavior(
+                        this.container.emptyBehaviorList();
+                        this.container.addBehavior(
                             new CAAT.AlphaBehavior().
                                 setFrameTime( this.time, 250 ).
                                 setValues(1,0).
@@ -556,8 +567,8 @@
                                             me.actors[i].setAnimationImageIndex([me.numbers[i]]);
                                         }
 
-                                        me.emptyBehaviorList();
-                                        me.addBehavior(
+                                        actor.emptyBehaviorList();
+                                        actor.addBehavior(
                                             new CAAT.AlphaBehavior().
                                                 setFrameTime( me.time, 250 ).
                                                 setValues(0,1));
@@ -607,7 +618,8 @@
         setImages : function( background, progress ){
             this.actorventana.setBackgroundImage(background, true);
             this.actorcrono.setBackgroundImage(progress, true);
-            //this.actorcrono.setClip( true );
+
+            this.setSize( this.actorventana.width, this.actorventana.height );
             this.actorcrono.setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE );
             return this;
         },
@@ -945,7 +957,7 @@
         timer:                      null,
         context:                    null,
         scene:                      null,
-        altitude:                   .2,
+        altitude:                   .05,
         altitudeMeterByIncrement:   2,
         currentAltitude:            0,
         initialOffset:              0,
@@ -1000,7 +1012,7 @@
                         if ( me.currentAltitude>0 ) {
                             me.currentAltitude=0;
                         }
-                        me.setBackgroundImageOffset( 0, me.currentAltitude>>0 );
+                        me.setBackgroundImageOffset( 0, me.currentAltitude );
                         timerTask.reset( me.scene.time );
                         me.context.incrementAltitude( me.altitudeMeterByIncrement );
                     },
@@ -1122,7 +1134,7 @@
                         this.numbers[i].
                             setSpriteIndex(number).
                             setLocation(
-                                (this.width - snumber.length*correction)/2 + i*correction, 20 ).
+                                (this.width - snumber.length*correction)/2 + i*correction, 24 ).
                             setVisible(true);
                     }
 
@@ -1242,6 +1254,129 @@
 })();
 
 (function() {
+    HN.MultiplierActorS= function() {
+        HN.MultiplierActorS.superclass.constructor.call(this);
+
+        this.star=      new CAAT.Actor();
+        this.container= new CAAT.ActorContainer();
+        this.actorx=    new CAAT.Actor();
+        this.actornum=  new CAAT.Actor();
+
+        this.addChild(this.star);
+        this.addChild(this.container);
+        this.container.addChild(this.actorx);
+        this.container.addChild(this.actornum);
+
+        this.container.setGlobalAlpha(true);
+
+        return this;
+    };
+
+    HN.MultiplierActorS.prototype= {
+
+        actorx:     null,
+        actornum:   null,
+        star:       null,
+
+        multiplier: 0,
+
+        setImages : function( font, x, star, scene ) {
+
+            this.scene= scene;
+            this.setOutOfFrameTime();
+
+            this.star.setBackgroundImage(star);
+            var S= this.star.width/2;
+            this.actorx.setBackgroundImage(x,false).
+                setBounds(0, (this.star.height-S)/2, S, S).
+                setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE );
+            this.actornum.setBackgroundImage(font,true).
+                setScale( .4,.4 ).
+                setLocation( 0, -20 );
+
+            this.setSize( this.star.width, this.star.height);
+            this.container.setSize( this.star.width, this.star.height);
+            this.container.setRotation( Math.PI/16 );
+
+            this.star.setLocation( 0,0 );
+
+
+            return this;
+        },
+        hideMultiplier : function() {
+            this.multiplier=0;
+            this.setOutOfFrameTime();
+        },
+        b1 : function(actor) {
+            actor.emptyBehaviorList();
+            var cb= new CAAT.ContainerBehavior().
+                    setFrameTime(this.scene.time,1000).
+                    setCycle(true);
+
+            var ab= new CAAT.AlphaBehavior().
+                    setFrameTime(0,1000).
+                    setValues(.8,1).
+                    setPingPong();
+
+            var sb= new CAAT.ScaleBehavior().
+                setFrameTime(0,1000).
+                setValues(.8, 1, .8, 1).
+                setPingPong();
+
+            cb.addBehavior(ab);
+            cb.addBehavior(sb);
+
+            actor.addBehavior(cb);
+        },
+        b2 : function(actor) {
+            var me= this;
+            actor.emptyBehaviorList();
+            var ab= new CAAT.AlphaBehavior().
+                    setFrameTime(this.time,300).
+                    setValues( this.alpha, 0 ).
+                    addListener( {
+                        behaviorExpired : function(behavior, time, actor) {
+                            me.hideMultiplier();
+                        },
+                        behaviorApplied : function(actor,time,normalizedTime,value) {}
+                    });
+            actor.addBehavior(ab);
+        },
+        contextEvent : function( event ) {
+            if ( event.source == 'context' ) {
+                if ( event.event=='multiplier' ) {
+
+                    if ( event.params.multiplier>1 ) {
+                        this.multiplier = event.params.multiplier;
+                        this.actornum.setAnimationImageIndex([this.multiplier]);
+                        this.setFrameTime(0, Number.MAX_VALUE);
+
+                        this.emptyBehaviorList();
+                        this.star.addBehavior(
+                            new CAAT.RotateBehavior().
+                                setFrameTime(this.time,1000).
+                                setValues(0, Math.PI*2 ).
+                                setCycle(true));
+
+                        this.b1(this.container);
+
+                    } else {
+                        this.emptyBehaviorList();
+                        this.b2(this.container);
+                    }
+                } else if ( event.event=='status') {
+                    if ( event.params==HN.Context.prototype.ST_ENDGAME ) {
+                        this.hideMultiplier();
+                    }
+                }
+            }
+        }
+    };
+
+    extend( HN.MultiplierActorS, CAAT.ActorContainer);
+})();
+
+(function() {
     HN.GameScene= function() {
         this.gameListener= [];
         return this;
@@ -1314,14 +1449,8 @@
 
             this.buttonImage= new CAAT.SpriteImage().initialize(
                     director.getImage('buttons'), 7,3 );
-            /*
-            if ( director.getRenderType()==='CSS' ) {
-                this.starsImage= new CAAT.SpriteImage().initialize(
-                        director.getImage('stars'), 1,6 );
-            } else {*/
-                this.starsImage= new CAAT.SpriteImage().initialize(
-                        director.getImage('stars'), 24,6 );
-            /*}*/
+            this.starsImage= new CAAT.SpriteImage().initialize(
+                    director.getImage('stars'), 24,6 );
             this.numbersImage= new CAAT.SpriteImage().initialize(
                     director.getImage('numbers'), 1,10 );
             this.numbersImageSmall= new CAAT.SpriteImage().initialize(
@@ -1357,8 +1486,6 @@
 
             this.brickActors= [];
 
-            this.soundControls( director );
-
             ///////////// some clouds
             for( i=0; i<4; i++ ) {
                 var cl= new HN.BackgroundImage().setupBehavior(director,true);
@@ -1371,10 +1498,17 @@
                     create().
                     setSize(
                         this.gameColumns*this.brickWidth,
-                        this.gameRows*this.brickHeight );
+                        this.gameRows*this.brickHeight )
+                ;
 
-            var bricksCY= (dh-this.bricksContainer.height)/2;
-            var bricksCX= bricksCY;
+            var TT= 15;
+
+            var bricksCY= dw>dh ?
+                10:
+                (dh-this.brickHeight*this.gameRows) - 105;           // vertically set space for banner.
+            var bricksCX= dw>dh ?
+                bricksCY + TT :
+                (dw - (this.gameColumns * this.brickWidth )) / 2;   // center horizontally
             this.bricksContainer.setLocation( bricksCX, bricksCY );
             
             this.directorScene.addChild(this.bricksContainer);
@@ -1392,26 +1526,42 @@
                 }
             }
 
+var HH=55;
+var WW=10;
 
             /////////////////////// game indicators.
-            var controls= new CAAT.ActorContainer().
-                    create().
-                    setBounds(
-                        this.bricksContainer.x + this.bricksContainer.width + bricksCX,
-                        20,
-                        dw - bricksCX - (this.bricksContainer.x + this.bricksContainer.width) - bricksCX,
-                        this.director.height-40 );
+            var controls= new CAAT.ActorContainer();
+            if ( dw>dh ) {
+                controls.setBounds(
+                    this.bricksContainer.x + this.bricksContainer.width + bricksCX + 10 ,
+                    -15,
+                    dw - bricksCX - (this.bricksContainer.x + this.bricksContainer.width) - bricksCX,
+                    this.director.height-40 );
+            } else {
+                controls.setBounds(0,0,dw, this.bricksContainer.y-5);
+            }
             this.directorScene.addChild( controls );
 
             /////////////////////// initialize button
-            var restart= new CAAT.Actor().
-                    setAsButton( this.buttonImage.getRef(), 9,10,11,9,
+            var restart= new CAAT.Actor();
+            if ( dw>dh )    {
+                restart.setAsButton( this.buttonImage.getRef(), 9,10,11,9,
                         function(button) {
                             me.context.timeUp();
                         }).
                     setLocation(
-                        (controls.width-this.buttonImage.singleWidth)/2,
-                        controls.height - this.buttonImage.singleHeight );
+                        (controls.width-this.buttonImage.singleWidth)/2 - 15,
+                        controls.height - this.buttonImage.singleHeight - 15 );
+            } else {
+                restart.
+                    setAsButton(
+                        new CAAT.SpriteImage().initialize(director.getImage('boton-salir'), 1, 3),
+                        0,2,0,0,
+                        function(button) {
+                                me.context.timeUp();
+                        }).
+                    setLocation( 0,0 );
+            }
 
             restart.contextEvent= function(event) {
                 if ( event.source=='context' ) {
@@ -1429,40 +1579,65 @@
             this.context.addContextListener(restart);
             controls.addChild(restart);
 
+            ///////////////////// Guess Number
+            var guess= new HN.GuessNumberActor().
+                    setNumbersImage( this.numbersImage, director.getImage('target-number') );
+            if ( dw>dh ) {
+                guess.setLocation( -15, 20, controls.width, 70 );
+            } else {
+                guess.setLocation( WW, HH, controls.width, 70 );
+            }
+            this.context.addContextListener(guess);
+            controls.addChild(guess);
+
+            ///////////////////// score
+            this.scoreActor= new HN.ScoreActor().
+                    initialize( this.numbersImageSmall, director.getImage('points') );
+            if ( dw>dh ) {
+                this.scoreActor.setLocation( 0, 250 );
+            } else {
+                this.scoreActor.setLocation( dw-this.scoreActor.width-WW, HH );
+            }
+            controls.addChild( this.scoreActor );
+            this.context.addContextListener(this.scoreActor);
+
+            ///////////////////// chronometer
+            this.chronoActor= new HN.Chrono().
+                    setImages( director.getImage('time'), director.getImage('timeprogress'));
+            if ( dw>dh )    {
+                this.chronoActor.setLocation( 0, 310 );
+            } else {
+                this.chronoActor.setLocation( dw-this.chronoActor.width-WW, guess.y+guess.height-this.chronoActor.height-15 );
+            }
+            this.context.addContextListener(this.chronoActor);
+            controls.addChild(this.chronoActor);
+
             ///////////////////// Level indicator
 	        this.levelActor= new HN.LevelActor().
-                    initialize( this.numbersImageSmall, director.getImage('level') );
-            this.levelActor.
-	                setBounds( 0, 110, controls.width, this.levelActor.height );
+                    initialize( this.numbersImageSmall, dw>dh ? director.getImage('level') : director.getImage('level-small') );
+            if ( dw>dh )    {
+                this.levelActor.setLocation( 0, 170 );
+            } else {
+                this.levelActor.setLocation(
+                    // espacio entre target number y score actor
+                    ((this.scoreActor.x- (guess.x+guess.width)) - this.levelActor.width)/2 + (guess.x+guess.width),
+                    guess.y+guess.height - this.levelActor.height - 10 );
+
+            }
             this.context.addContextListener(this.levelActor);
 
 	        controls.addChild(this.levelActor);
 
-            ///////////////////// Guess Number
-            var guess= new HN.GuessNumberActor().
-                    setBounds( 0, 10, controls.width, 70 ).
-                    setNumbersImage( this.numbersImage );
-            this.context.addContextListener(guess);
-            controls.addChild(guess);
-
-            ///////////////////// chronometer
-            this.chronoActor= new HN.Chrono().
-                    setBounds( 0, 230, controls.width, director.getImage('time').height ).
-                    setImages( director.getImage('time'), director.getImage('timeprogress'));
-            this.context.addContextListener(this.chronoActor);
-            controls.addChild(this.chronoActor);
-
-            ///////////////////// score
-            this.scoreActor= new HN.ScoreActor().
-                    setBounds( 0, 180, controls.width, 30 ).
-                    initialize( this.numbersImageSmall, director.getImage('points') );
-            controls.addChild( this.scoreActor );
-            this.context.addContextListener(this.scoreActor);
 
             ////////////////////// Multiplier
-            var multiplier= new HN.MultiplierActor().
-                    setBounds(0, 300, controls.width, 80 ).
-                    setImages( this.numbersImage, director.getImage('multiplier') );
+            var multiplier;
+
+                var star= director.getImage('multiplier-star');
+                multiplier= new HN.MultiplierActorS().
+                    setLocation(
+                        this.scoreActor.x + this.scoreActor.width - star.width*.8,
+                        this.scoreActor.y - star.height*.3 ).
+                    setImages( this.numbersImage, director.getImage('multiplier'), star, this.directorScene );
 
             controls.addChild( multiplier );
             this.context.addContextListener(multiplier);
@@ -1489,11 +1664,22 @@
             this.directorScene.addChild(this.selectionPath);
             this.context.addContextListener(this.selectionPath);
 
+
+            ////////////// respawn
+            this.create_respawntimer(director);
+            if ( dw>dh ) {
+                this.respawnClock.setLocation(2,2);
+            } else {
+                this.respawnClock.setLocation(
+                    this.levelActor.x + (this.levelActor.width - this.respawnClock.width)/2,
+                    this.levelActor.y - this.respawnClock.height );
+            }
+
             ////////////////////////////////////////////////
             this.create_EndGame(director);
             this.create_EndLevel(director);
 
-            this.create_respawntimer(director);
+            this.soundControls( director );
 
             this.create_cache();
             
@@ -1544,22 +1730,15 @@
                 setOutOfFrameTime();
 
             var sb;
-            /*
-            if ( this.director.getRenderType()==='CSS' ) {
-                sb= new CAAT.AlphaBehavior().
-                        setFrameTime(this.directorScene.time, 0).
-                        setValues(1,0);
-            } else {
-*/
-                sb= new CAAT.GenericBehavior().
-                    setFrameTime(this.directorScene.time, 0).
-                    setValues( 1, 0, null, null, function(value,target,actor) {
-                        actor.setAnimationImageIndex( [
-                                actor.__imageIndex+(23-((23*value)>>0))*actor.backgroundImage.columns
-                            ] );
-                    });
-/*            }
-*/
+
+            sb= new CAAT.GenericBehavior().
+                setFrameTime(this.directorScene.time, 0).
+                setValues( 1, 0, null, null, function(value,target,actor) {
+                    actor.setAnimationImageIndex( [
+                            actor.__imageIndex+(23-((23*value)>>0))*actor.backgroundImage.columns
+                        ] );
+                });
+
             actor.__sb= sb;
             actor.addBehavior(sb);
 
@@ -1705,7 +1884,7 @@
                     initialize(this.numbersImageSmall, director.getImage('level'));
             this.levelActorEG.
                     setBounds(
-                        (this.endGameActor.width-this.levelActor.width)/2,
+                        (this.endGameActor.width-this.levelActorEG.width)/2,
                         265,
                         this.levelActorEG.width,
                         this.levelActorEG.height );
@@ -2150,7 +2329,7 @@
                 this.endLevelMessage.setBackgroundImage( image, true );
                 this.endLevelMessage.setLocation(
                         (this.endLevelMessage.parent.width-image.width)/2,
-                        30 + this.endLevelMessage.parent.height/2
+                        this.endLevelMessage.parent.height/2 - 25
                         );
             }
             this.showGameEvent( this.endLevelActor );
@@ -2269,8 +2448,12 @@
                         } else {
                             button.setButtonImageIndex(5,5,5,5);
                         }
-                    }).
-                    setBounds( dw-ci.singleWidth-2, 2+2+ci.singleHeight, ci.singleWidth, ci.singleHeight );
+                    });
+            if ( director.width>director.height ) {
+                sound.setBounds( dw-ci.singleWidth-2, 2+2+ci.singleHeight, ci.singleWidth, ci.singleHeight );
+            } else {
+                sound.setBounds( dw-ci.singleWidth*2-2, 2+2, ci.singleWidth, ci.singleHeight );
+            }
 
             music.prepare= function() {
                 if ( director.audioManager.isMusicEnabled() ) {
