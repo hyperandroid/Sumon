@@ -7,7 +7,7 @@ on every game aspect.
 
 This game renders gracefully on Canvas, WebGL and CSS.
 
-## Screen shots ##
+## Screenshots ##
 
 <a href="http://hyperandroid.github.com/Sumon"><img src="http://hyperandroid.github.com/Sumon/img/1.png"></a>
 <a href="http://hyperandroid.github.com/Sumon"><img src="http://hyperandroid.github.com/Sumon/img/2.png"></a>
