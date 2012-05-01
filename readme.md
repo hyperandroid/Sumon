@@ -9,7 +9,7 @@ This game renders gracefully on Canvas, WebGL and CSS.
 
 ## License ##
 
-Source code is under GPL V3. and is (c) Ibon Tolosana, @hyperandroid
+Source code is under GPL V3. and is (c) Ibon Tolosana, <a href="http://twitter.com/hyperandroid">@hyperandroid</a>
 
 Assets are under a CC license and are (c) Ludei.com
 
