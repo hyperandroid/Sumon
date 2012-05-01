@@ -1,8 +1,14 @@
+/**
+ * See LICENSE file.
+ *
+ * Entry point.
+ */
+
 function __CAAT__loadingScene(director) {
 
     var scene= director.createScene();
 
-    var TIME= 12000;
+    var TIME= 5000;
     var time= new Date().getTime();
 
     var background= new CAAT.ActorContainer().
@@ -27,16 +33,20 @@ function __CAAT__loadingScene(director) {
         setLocation( lading.x+20, lading.y+10 ).
         enableEvents(false);
     scene.addChild(rueda);
-    rueda.addBehavior(
-            new CAAT.RotateBehavior().
+
+
+    var rrb= new CAAT.RotateBehavior().
                     setValues(0,2*Math.PI).
-                    setFrameTime(0,1000).
-                    setCycle(true)
-            );
+                    setFrameTime(0,1000);
+    
+    rueda.addBehavior( rrb.setCycle(true) );
+
     var starsImage= null;
     starsImage= new CAAT.SpriteImage().initialize(director.getImage('stars'), 24,6 );
 
     var T= 600;
+
+    var kfc_i= new CAAT.Interpolator().createExponentialInInterpolator(2,false);
 
     var mouseStars= function(mouseEvent) {
 
@@ -59,11 +69,7 @@ function __CAAT__loadingScene(director) {
                         new CAAT.ScaleBehavior().
                             setFrameTime(scene.time, T).
                             setValues( 1,5, 1,5 ).
-                            setInterpolator(
-                                new CAAT.Interpolator().createExponentialInInterpolator(
-                                    3,
-                                    false)
-                            )
+                            setInterpolator( kfc_i )
                     );
 
             if ( director.getRenderType()==='CSS' ) {
@@ -71,11 +77,7 @@ function __CAAT__loadingScene(director) {
                     new CAAT.AlphaBehavior().
                         setFrameTime(scene.time, T).
                         setValues( 1, .1 ).
-                        setInterpolator(
-                            new CAAT.Interpolator().createExponentialInInterpolator(
-                                3,
-                                false)
-                        ));
+                        setInterpolator( kfc_i ));
             } else {
                 actorStar.addBehavior(
                     new CAAT.GenericBehavior().
@@ -93,9 +95,9 @@ function __CAAT__loadingScene(director) {
     background.mouseMove= mouseStars;
     background.mouseDrag= mouseStars;
 
-    scene.loadedImage = function(count, total) {
+    scene.loadedImage = function(count, images) {
 
-        if ( count==total ) {
+        if ( count==images.length ) {
 
             var difftime= new Date().getTime()-time;
             if ( difftime<TIME ){
@@ -110,12 +112,12 @@ function __CAAT__loadingScene(director) {
                     function() {
                         lading.setOutOfFrameTime();
                         rueda.setOutOfFrameTime();
-                        __end_loading(director);
+                        __end_loading(director, images);
                     }
                 );
 
             } else {
-                __end_loading(director);
+                __end_loading(director, images);
             }
 
         }
@@ -124,19 +126,18 @@ function __CAAT__loadingScene(director) {
     return scene;
 }
 
-function __end_loading(director) {
+function __end_loading(director, images) {
 
     director.emptyScenes();
+    director.setImagesCache(images);
 
-    // BUGBUG artifact
-    director.setImagesCache(director.__next_images);
-    delete director.__next_images;
+    var gardenScene= new HN.GardenScene().create(
+        director,
+        (director.getRenderType()==='CANVAS') ? 120 : 0);
 
-    var gardenScene= new HN.GardenScene().create(director, (director.getRenderType()==='CANVAS') ?
-        (( navigator.browser!=='iOS' )  ? 120 : 0) :
-        0);
     var gameScene= new HN.GameScene().create(director, HN.GameModes.respawn );
     gardenScene.gameScene= gameScene;
+
     gameScene.addGameListener( gardenScene );
 
     director.easeIn(
@@ -148,36 +149,72 @@ function __end_loading(director) {
             new CAAT.Interpolator().createExponentialInOutInterpolator(5,false) );
 }
 
-function __Hypernumbers_init()   {
-
-CAAT.DEBUG=1;
-    //var director = new CAAT.Director().initialize(500,750,document.getElementById('game')).setClear(false);
-
-//    CAAT.browser= 'iOS'; //navigator.browser;
-
+function createCSS() {
     var director;
+
     if ( window.innerWidth>window.innerHeight ) {
-        director= new CAAT.Director().initialize(700,500).setClear(false);
+        director= new CAAT.Director().initialize(700,500,document.getElementById('game')).setClear( false );
+    } else {
+        director= new CAAT.Director().initialize(500,750,document.getElementById('game')).setClear(false);
+    }
+
+
+
+    return director;
+}
+
+function createCanvas() {
+    var director;
+
+    if ( window.innerWidth>window.innerHeight ) {
+        director= new CAAT.Director().initialize(700,500).setClear( false );
     } else {
         director= new CAAT.Director().initialize(500,750).setClear(false);
     }
 
+    return director;
+}
 
-    document.getElementById('game').appendChild(director.canvas);
+function createGL() {
+    var director;
 
-//    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
+    if ( window.innerWidth>window.innerHeight ) {
+        director= new CAAT.Director().initializeGL(700,500).setClear( false );
+    } else {
+        director= new CAAT.Director().initializeGL(500,750).setClear(false);
+    }
+
+    return director;
+}
+
+
+function __Hypernumbers_init()   {
+
+    // uncomment to avoid decimal point coordinates.
+    // Runs faster on anything but latest chrome.
+    // CAAT.setCoordinateClamping(false);
+
+    // uncomment to show CAAT's debug bar
+    //CAAT.DEBUG=1;
+
+    var director= createCanvas();
+
+    // Uncomment to make the game conform to window's size.
+    //director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
 
     HN.director= director;
 
     var ni= director.width>director.height;
 
+    var prefix= typeof __RESOURCE_URL!=='undefined' ? __RESOURCE_URL : '';
+
     new CAAT.ImagePreloader().loadImages(
         [
-            {id:'stars',    url:'res/img/stars.png'},
-            {id:'splash0',  url: ni ? 'res/splash/splash0.png' : 'res/splash/splash0-i.png'},
-            {id:'splash1',  url: ni ? 'res/splash/splash1.png' : 'res/splash/splash1-i.png'},
-            {id:'lading',   url:'res/splash/lading.png'},
-            {id:'rueda',    url:'res/splash/rueda.png'}
+            {id:'stars',    url: prefix + 'res/img/stars.png'},
+            {id:'splash0',  url: prefix + (ni ? 'res/splash/splash0.png' : 'res/splash/splash0-i.png')},
+            {id:'splash1',  url: prefix + (ni ? 'res/splash/splash1.png' : 'res/splash/splash1-i.png')},
+            {id:'lading',   url: prefix + 'res/splash/lading.png'},
+            {id:'rueda',    url: prefix + 'res/splash/rueda.png'}
         ],
         function( counter, images ) {
 
@@ -187,102 +224,74 @@ CAAT.DEBUG=1;
 
                 new CAAT.ImagePreloader().loadImages(
                     [
-                        {id:'smoke',            url:'res/img/humo.png'},
-                        {id:'stars',            url:'res/img/stars.png'},
-                        {id:'bricks',           url:'res/img/bricks.png'},
-                        {id:'buttons',          url:'res/img/botones.png'},
-                        {id:'numbers',          url:'res/img/numbers.png'},
-                        {id:'numberssmall',     url:'res/img/numbers_s.png'},
-                        {id:'madewith',         url:'res/img/madewith.png'},
-                        {id:'background-1',     url:'res/img/fondo1.png'},
-                        {id:'background-2',     url: ni ? 'res/img/fondo2.png' : 'res/img/fondo2inv.png'},
-                        {id:'background_op',    url:'res/img/gameover.png'},
-                        {id:'cloud0',           url:'res/img/nube1.png'},
-                        {id:'cloud1',           url:'res/img/nube2.png'},
-                        {id:'cloud2',           url:'res/img/nube3.png'},
-                        {id:'cloud3',           url:'res/img/nube4.png'},
-                        {id:'cloudb0',          url:'res/img/nubefondo1.png'},
-                        {id:'cloudb1',          url:'res/img/nubefondo2.png'},
-                        {id:'cloudb2',          url:'res/img/nubefondo3.png'},
-                        {id:'cloudb3',          url:'res/img/nubefondo4.png'},
-                        {id:'level',            url:'res/img/level.png'},
-                        {id:'level-small',      url:'res/img/levelsmall.png'},
-                        {id:'boton-salir',      url:'res/img/boton_salir.png'},
-                        {id:'points',           url:'res/img/score.png'},
-                        {id:'time',             url:'res/img/time.png'},
-                        {id:'timeprogress',     url:'res/img/time_progress.png'},
-                        {id:'multiplier',       url: ni ? 'res/img/x.png' : 'res/img/xsmall.png'},
-                        {id:'multiplier-star',  url:'res/img/multiplicador.png'},
-                        {id:'tweet',            url:'res/img/tweet.png'},
-                        {id:'ovni',             url:'res/img/ovni.png'},
-                        {id:'logo',             url:'res/img/logo_menu.png'},
-                        {id:'levelclear',       url:'res/img/levelcleared.png'},
-                        {id:'msg1',             url:'res/img/7.png'},
-                        {id:'msg2',             url:'res/img/6.png'},
-                        {id:'msg3',             url:'res/img/5.png'},
-                        {id:'msg4',             url:'res/img/4.png'},
-                        {id:'msg5',             url:'res/img/3.png'},
-                        {id:'msg6',             url:'res/img/2.png'},
-                        {id:'msg7',             url:'res/img/1.png'},
-                        {id:'info_howto',       url:'res/img/info.png'},
-                        {id:'sound',            url:'res/img/sound.png'},
-                        {id:'mode-respawn',     url:'res/img/respawn.png'},
-                        {id:'mode-progressive', url:'res/img/progresive.png'},
-                        {id:'mode-classic',     url:'res/img/normal_mode.png'},
-                        {id:'mode-text',        url:'res/img/textos.png'},
-                        {id:'rclock-bg',        url:'res/img/rclock_bg.png'},
-                        {id:'rclock-tick',      url:'res/img/rclock_tick.png'},
-                        {id:'rclock-arrow',     url:'res/img/rclock_arrow.png'},
-                        {id:'bolas',            url:'res/img/bolas.png'},
-                        {id:'info',             url: ni ? 'res/big/about.png' : 'res/big/about-i.png'},
-                        {id:'howto',            url: ni ? 'res/big/tutorial.png' : 'res/big/tutorial-i.png'},
-                        {id:'target-number',    url:'res/img/target.png'}
+                        {id:'smoke',            url: prefix + 'res/img/humo.png'},
+                        {id:'stars',            url: prefix + 'res/img/stars.png'},
+                        {id:'bricks',           url: prefix + 'res/img/bricks.png'},
+                        {id:'buttons',          url: prefix + 'res/img/botones.png'},
+                        {id:'numbers',          url: prefix + 'res/img/numbers.png'},
+                        {id:'numberssmall',     url: prefix + 'res/img/numbers_s.png'},
+                        {id:'madewith',         url: prefix + 'res/img/madewith.png'},
+                        {id:'background-1',     url: prefix + 'res/img/fondo1.png'},
+                        {id:'background-2',     url:  prefix + (ni ? 'res/img/fondo2.png' : 'res/img/fondo2inv.png')},
+                        {id:'background_op',    url: prefix + 'res/img/gameover.png'},
+                        {id:'cloud0',           url: prefix + 'res/img/nube1.png'},
+                        {id:'cloud1',           url: prefix + 'res/img/nube2.png'},
+                        {id:'cloud2',           url: prefix + 'res/img/nube3.png'},
+                        {id:'cloud3',           url: prefix + 'res/img/nube4.png'},
+                        {id:'cloudb0',          url: prefix + 'res/img/nubefondo1.png'},
+                        {id:'cloudb1',          url: prefix + 'res/img/nubefondo2.png'},
+                        {id:'cloudb2',          url: prefix + 'res/img/nubefondo3.png'},
+                        {id:'cloudb3',          url: prefix + 'res/img/nubefondo4.png'},
+                        {id:'level',            url: prefix + 'res/img/level.png'},
+                        {id:'level-small',      url: prefix + 'res/img/levelsmall.png'},
+                        {id:'boton-salir',      url: prefix + 'res/img/boton_salir.png'},
+                        {id:'points',           url: prefix + 'res/img/score.png'},
+                        {id:'time',             url: prefix + 'res/img/time.png'},
+                        {id:'timeprogress',     url: prefix + 'res/img/time_progress.png'},
+                        {id:'multiplier',       url: prefix + (ni ? 'res/img/x.png' : 'res/img/xsmall.png')},
+                        {id:'multiplier-star',  url: prefix + 'res/img/multiplicador.png'},
+                        {id:'tweet',            url: prefix + 'res/img/tweet.png'},
+                        {id:'ovni',             url: prefix + 'res/img/ovni.png'},
+                        {id:'logo',             url: prefix + 'res/img/logo_menu.png'},
+                        {id:'levelclear',       url: prefix + 'res/img/levelcleared.png'},
+                        {id:'msg1',             url: prefix + 'res/img/7.png'},
+                        {id:'msg2',             url: prefix + 'res/img/6.png'},
+                        {id:'msg3',             url: prefix + 'res/img/5.png'},
+                        {id:'msg4',             url: prefix + 'res/img/4.png'},
+                        {id:'msg5',             url: prefix + 'res/img/3.png'},
+                        {id:'msg6',             url: prefix + 'res/img/2.png'},
+                        {id:'msg7',             url: prefix + 'res/img/1.png'},
+                        {id:'info_howto',       url: prefix + 'res/img/info.png'},
+                        {id:'sound',            url: prefix + 'res/img/sound.png'},
+                        {id:'mode-respawn',     url: prefix + 'res/img/respawn.png'},
+                        {id:'mode-progressive', url: prefix + 'res/img/progresive.png'},
+                        {id:'mode-classic',     url: prefix + 'res/img/normal_mode.png'},
+                        {id:'mode-text',        url: prefix + 'res/img/textos.png'},
+                        {id:'rclock-bg',        url: prefix + 'res/img/rclock_bg.png'},
+                        {id:'rclock-tick',      url: prefix + 'res/img/rclock_tick.png'},
+                        {id:'rclock-arrow',     url: prefix + 'res/img/rclock_arrow.png'},
+                        {id:'bolas',            url: prefix + 'res/img/bolas.png'},
+                        {id:'info',             url: prefix + (ni ? 'res/big/about.png' : 'res/big/about-i.png')},
+                        {id:'howto',            url: prefix + (ni ? 'res/big/tutorial.png' : 'res/big/tutorial-i.png')},
+                        {id:'target-number',    url: prefix + 'res/img/target.png'}
                     ],
+
 
                     function( counter, images ) {
 
-                        if ( counter==images.length ) {
-
-/*
-var im= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(0,1,32,images[0].image);
-var str= "image/png";
-var strData= im.toDataURL(str);
-document.location.href= strData.replace( str, "image/octet-stream" );
-
-/*
-                            if ( director.getRenderType()!=='CSS') {
-                                images[0].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(0,1,32,images[0].image);
-                                images[1].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,24,images[1].image);
-                                images[40].image= CAAT.modules.ImageUtil.prototype.createAlphaSpriteSheet(1,0,16,images[40].image);
-                            }
-*/
-                            director.__next_images= images;
-
-                            if ( navigator.browser==='iOS' ) {
-                                director.
-                                    addAudio("01",              "res/sound/01.mp3").
-                                    addAudio("10",              "res/sound/10.mp3").
-                                    addAudio("11",              "res/sound/11.mp3").
-                                    addAudio("12",              "res/sound/12.mp3").
-                                    addAudio("sumamal",         "res/sound/suma_mal.mp3").
-                                    addAudio("mostrarpanel",    "res/sound/mostrarpanel.mp3").
-                                    addAudio("deseleccionar",   "res/sound/deseleccionar.mp3").
-                                    addAudio("music",           "res/sound/music.mp3");
-                            } else {
-                                director.
-                                    addAudio('01',              document.getElementById('audio_01')).
-                                    addAudio('10',              document.getElementById('audio_10')).
-                                    addAudio('11',              document.getElementById('audio_11')).
-                                    addAudio('12',              document.getElementById('audio_12')).
-                                    addAudio('sumamal',         document.getElementById('sumamal')).
-                                    addAudio('mostrarpanel',    document.getElementById('mostrarpanel')).
-                                    addAudio('deseleccionar',   document.getElementById('deseleccionar')).
-                                    addAudio('music',           document.getElementById('music'));
-                            }
-
+                        if ( counter===images.length ) {
+                            director.
+                                addAudio("01",              prefix+"res/sound/01.mp3").
+                                addAudio("10",              prefix+"res/sound/10.mp3").
+                                addAudio("11",              prefix+"res/sound/11.mp3").
+                                addAudio("12",              prefix+"res/sound/12.mp3").
+                                addAudio("sumamal",         prefix+"res/sound/suma_mal.mp3").
+                                addAudio("mostrarpanel",    prefix+"res/sound/mostrarpanel.mp3").
+                                addAudio("deseleccionar",   prefix+"res/sound/deseleccionar.mp3").
+                                addAudio("music",           prefix+"res/sound/music.mp3");
                         }
 
-                        scene_loading.loadedImage(counter, images.length);
+                        scene_loading.loadedImage(counter, images);
 
                     }
                 );
@@ -295,4 +304,3 @@ document.location.href= strData.replace( str, "image/octet-stream" );
 }
 
 window.addEventListener('load', __Hypernumbers_init, false);
-//__Hypernumbers_init();

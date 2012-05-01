@@ -1,3 +1,8 @@
+/**
+ * See LICENSE file.
+ *
+ * Menu Scene.
+ */
 
 (function() {
 	HN.Grass = function() {
@@ -345,9 +350,13 @@
     HN.Cloud.prototype= {
         scene:      null,
 
-        setupBehavior : function(director, bFirstTime) {
+        setScene : function(scene) {
+            this.scene= scene;
+            return this;
+        },
+        setupBehavior : function(director) {
 
-            this.setBackgroundImage( director.getImage('cloudb'+ ((4*Math.random())>>0) ), true );
+            this.setBackgroundImage( director.getImage('cloudb'+ ((4*Math.random())>>0) ) );
 
             var me= this;
             var ix0, ix1, iy0, iy1;
@@ -358,40 +367,42 @@
             var ih= this.backgroundImage.height;
             var iw= this.backgroundImage.width;
 
-            var t= 40000 + 5000*Math.random()*4;            
+            var t= 40000 + 5000*Math.random()*4;
 
-            if ( bFirstTime ) {
-                ix0= (Math.random()*director.width)>>0;
-                iy0= (Math.random()*director.height)>>0;
-                t= (dw-ix0)/dw*t;
-            } else {
-                ix0= -iw + -iw*2*Math.random();
-                iy0= dh*Math.random()/2;
-            }
-
+            ix0= -iw + -iw*2*Math.random();
+            iy0= dh*Math.random()/2;
             ix1= dw;
             iy1= iy0 + 50*Math.random()/2;
 
+            var me= this;
+
+            var pb= new CAAT.PathBehavior().
+                setPath( new CAAT.Path().setLinear(ix0, iy0, ix1, iy1 ) );
+
             this.emptyBehaviorList();
             this.addBehavior(
-                    new CAAT.PathBehavior().
-                            setFrameTime( this.time, t ).
-                            setPath(
-                                new CAAT.Path().setLinear( ix0,iy0, ix1,iy1 )
-                            ).
-                            addListener( {
-                                behaviorExpired : function(behavior, time, actor) {
-                                    me.setupBehavior(director,false);
-                                }
-                            })
-                    );
+                pb.
+                    setFrameTime( this.scene.time, t ).
+                    addListener( {
+                        behaviorExpired : function(behavior, time, actor) {
+
+                            ix0= -iw + -iw*2*Math.random();
+                            iy0= dh*Math.random()/2;
+                            ix1= dw;
+                            iy1= iy0 + 50*Math.random()/2;
+                            t= 40000 + 5000*Math.random()*4;
+
+                            behavior.path.setLinear( ix0, iy0, ix1, iy1 );
+                            behavior.setTimeOffset(0).setFrameTime( me.scene.time, t );
+                        }
+                    }).
+                    setTimeOffset( Math.random() ) );
 
             return this;
-
         }
-    };
+    }
 
-    extend( HN.Cloud, CAAT.Actor);
+    extend( HN.Cloud, CAAT.Actor );
 
 })();
 
@@ -493,6 +504,126 @@
 })();
 
 (function() {
+    HN.Ovni= function(director, scene, ovnitrail, id ) {
+
+        HN.Ovni.superclass.constructor.call(this);
+
+        var ovniImage= new CAAT.SpriteImage().initialize( director.getImage('ovni'), 1, 2 );
+        this.setBackgroundImage(ovniImage.getRef().setAnimationImageIndex([(Math.random()*2)>>0]));
+        this.enableEvents(false);
+        this.setId(id);
+
+        setupBehavior(director, scene, ovnitrail, this);
+
+        return this;
+    };
+
+    HN.Ovni.prototype= {
+        animationName:  null,
+        __index:        0,
+
+        nextAnimationName : function() {
+            this.animationName= this.getId()+this.__index++;
+            return this.animationName;
+        },
+
+        getAnimationName : function() {
+            return this.animationName;
+        }
+    }
+
+    function setupBehavior(director, scene, ovnitrail, actor) {
+
+        var smokeImage;
+        smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 32,1 );
+
+        var TT=1000;
+        if ( director.glEnabled ) {
+            TT=6000;
+        }
+
+
+        var path= new CAAT.Path().setCubic(
+            Math.random() * director.width,
+            Math.random() * director.height,
+            Math.random() * director.width,
+            Math.random() * director.height,
+            Math.random() * director.width,
+            Math.random() * director.height,
+            Math.random() * director.width,
+            Math.random() * director.height);
+
+        var pb= new CAAT.PathBehavior().
+            setPath( path ).
+            setFrameTime( scene.time, 3000 + Math.random() * 3000 ).
+            addListener( {
+                prevTime : -1,
+                smokeTime: TT,
+                nextSmokeTime: 100,
+
+                behaviorExpired : function(behaviour, time) {
+                    var endCoord = behaviour.path.endCurvePosition();
+                    behaviour.setPath(
+                        new CAAT.Path().setCubic(
+                            endCoord.x,
+                            endCoord.y,
+                            Math.random() * director.width,
+                            Math.random() * director.height,
+                            Math.random() * director.width,
+                            Math.random() * director.height,
+                            Math.random() * director.width,
+                            Math.random() * director.height));
+                    behaviour.setFrameTime(scene.time, 3000 + Math.random() * 3000);
+                },
+
+                behaviorApplied : function(behavior, time, normalizedTime, actor, value) {
+                    if (-1 == this.prevTime || time - this.prevTime >= this.nextSmokeTime) {
+                        //var img= director.getImage('smoke');
+                        var img = smokeImage;
+                        var offset0 = Math.random() * 10 * (Math.random() < .5 ? 1 : -1);
+                        var offset1 = Math.random() * 10 * (Math.random() < .5 ? 1 : -1);
+                        var humo =
+                            new CAAT.Actor().
+                                setBackgroundImage(smokeImage.getRef().setAnimationImageIndex([0])).
+                                setLocation(
+                                    offset0 + actor.x + actor.width / 2 - img.singleWidth / 2,
+                                    offset1 + actor.y + actor.height / 2 - img.singleHeight / 2).
+                                setDiscardable(true).
+                                enableEvents(false).
+                                setFrameTime(time, this.smokeTime).
+                                addBehavior(
+                                    new CAAT.ScaleBehavior().
+                                        setFrameTime(time, this.smokeTime).
+                                        setValues(.5, 1.5, .5, 1.5));
+                                ;
+
+                        humo.addBehavior(
+                            new CAAT.GenericBehavior().
+                                setFrameTime(time, this.smokeTime).
+                                setValues(1, 0, null, null, function(value, target, actor) {
+                                    var v= 31 - ((value * 31) >> 0);
+                                    if ( v!==actor.backgroundImage.animationImageIndex[0] ) {
+                                        actor.setAnimationImageIndex([v]);
+                                    }
+                                })
+                        );
+
+                        ovnitrail.addChild(humo);
+
+                        this.prevTime = time;
+                    }
+
+                }
+            });
+
+        actor.addBehavior( pb );
+    }
+
+    extend( HN.Ovni, CAAT.Actor );
+
+})();
+
+(function() {
 
     HN.GardenScene= function() {
         if ( CAAT.browser!=='iOS' ) {
@@ -511,6 +642,17 @@
 
         music:          null,
         sound:          null,
+
+        createClouds : function() {
+
+            for(var i=0; i<5; i++ ) {
+                var cl= new HN.Cloud().
+                        setId('cloud'+i).
+                        setScene( this.directorScene ).
+                        setupBehavior(this.director);
+                this.directorScene.addChild(cl);
+            }
+        },
 
         createModeButtons : function() {
 
@@ -572,6 +714,114 @@
             this.directorScene.addChild( createb(1) );
             this.directorScene.addChild( createb(2) );
         },
+
+        createHowtoButton : function( info_howto_ci ) {
+            var director= this.director;
+
+            var ihw= info_howto_ci.singleWidth;
+            var ihh= info_howto_ci.singleHeight;
+
+            var me= this;
+
+            var _howto= new CAAT.Actor().
+                setBackgroundImage(new CAAT.SpriteImage().initialize( director.getImage('howto'),1,1 ) ).
+                setOutOfFrameTime().
+                setAlpha(.9);
+
+            var pbOut= new CAAT.PathBehavior().
+                setValues( new CAAT.Path().setLinear( _howto.x,0,700,0 ) ).
+                setInterpolator(new CAAT.Interpolator().createBounceOutInterpolator(false) ).
+                addListener( {
+                    behaviorExpired : function(behavior, time, actor) {
+                        _howto.setOutOfFrameTime();
+                    }
+                });
+
+            var pbIn= new CAAT.PathBehavior().
+                setValues(new CAAT.Path().setLinear( 700,0,0,0 )).
+                setInterpolator( new CAAT.Interpolator().createBounceOutInterpolator(false) );
+
+
+
+            _howto.mouseClick= function( e ) {
+                _howto.emptyBehaviorList().
+                    setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
+                    addBehavior( pbOut.setFrameTime( me.directorScene.time, 1000 ) );
+
+            };
+
+            var howto= new CAAT.Actor().
+                setAsButton(info_howto_ci.getRef(), 3,4,5,3,
+                    function() {
+                        director.audioPlay('11');
+                        _howto.emptyBehaviorList().
+                            setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
+                            addBehavior( pbIn.setFrameTime( me.directorScene.time, 1000 ) );
+
+                    }).
+                setBounds( 10, director.height-10-ihh-ihh-5, ihw, ihh );
+
+            return {
+                howto: howto,
+                howtod:_howto
+            };
+        },
+
+        createInfoButton : function( info_howto_ci ) {
+
+            var director= this.director;
+
+            var ihw= info_howto_ci.singleWidth;
+            var ihh= info_howto_ci.singleHeight;
+
+            var me= this;
+
+            // cartel entrante.
+            var _info= new CAAT.Actor().
+                setBackgroundImage( new CAAT.SpriteImage().initialize( director.getImage('info'),1,1 ) ).
+                setOutOfFrameTime().
+                setAlpha(.9);
+
+            var pbOut= new CAAT.PathBehavior().
+                setValues( new CAAT.Path().setLinear( _info.x,0,-700,0 ) ).
+                setInterpolator(new CAAT.Interpolator().createBounceOutInterpolator(false) ).
+                addListener( {
+                    behaviorExpired : function(behavior, time, actor) {
+                        _info.setOutOfFrameTime();
+                    }
+                });
+
+            var pbIn= new CAAT.PathBehavior().
+                setFrameTime( me.directorScene.time, 1000 ).
+                setValues( new CAAT.Path().setLinear( -700,0,0,0 ) ).
+                setInterpolator( new CAAT.Interpolator().createBounceOutInterpolator(false) );
+
+
+            _info.mouseClick= function( e ) {
+                _info.emptyBehaviorList().
+                    setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
+                    addBehavior(pbOut.setFrameTime( me.directorScene.time, 1000 ));
+            };
+
+            // boton info
+            var info= new CAAT.Actor().
+                setAsButton(info_howto_ci.getRef(), 0,1,2,0,
+                    function(button) {
+
+                        director.audioPlay('11');
+                        _info.emptyBehaviorList().
+                            setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
+                            addBehavior( pbIn.setFrameTime( me.directorScene.time, 1000 ) );
+
+                    }).
+                setBounds( 10, this.director.height-10-ihh, ihw, ihh );
+
+            return {
+                info:info,
+                infod:_info
+            };
+        },
+
         /**
          * Creates the main game Scene.
          * @param director a CAAT.Director instance.
@@ -583,6 +833,7 @@
             this.director= director;
             this.directorScene= director.createScene();
 
+
             var dw= director.width;
             var dh= director.height;
             var me= this;
@@ -592,108 +843,37 @@
             };
 
             var imgb= director.getImage('background-2');
+
+            /*
+             * Para ver toda la textura de pagina
+
+            var ciimgb= new CAAT.SpriteImage().initialize( imgb,1,1 );
+            ciimgb.xyCache[0][0]= 0;
+            ciimgb.xyCache[0][1]= 0;
+            ciimgb.xyCache[0][2]= 1;
+            ciimgb.xyCache[0][3]= 1;
+            */
+
             this.directorScene.addChild(
                 new CAAT.Actor().
                         setBounds(0,0,dw,dh).
                         setBackgroundImage(imgb)
             );
 
-            ///////////// some clouds
-            for( i=0; i<5; i++ ) {
-                var cl= new HN.Cloud().
-                        setupBehavior(director,true).
-                        setLocation( dw/5*i + (dw/5)*Math.random() , dh/3*Math.random() );
-                this.directorScene.addChild(cl);
-            }
 
+            ///////////// some clouds
+            this.createClouds();
+
+            ///////////// some ovnis
             var ovnitrail= new CAAT.ActorContainer().create().setBounds(0,0,dw,dh);
             this.directorScene.addChild(ovnitrail);
 
-            var ovniImage= new CAAT.SpriteImage().initialize( director.getImage('ovni'), 1, 2 );
-
-            var smokeImage;
-            smokeImage= new CAAT.SpriteImage().initialize(director.getImage('smoke'), 32,1 );
-
-            var TT=1000;
-            if ( director.glEnabled ) {
-                TT=6000;
+            for (var i = 0; i < 2; i++) {
+                this.directorScene.addChild( new HN.Ovni( director, this.directorScene, ovnitrail, 'ovni'+i ) );
             }
 
-            for( var i=0; i<2; i++ ) {
-                var ox= Math.random()*dw;
-                var oy= Math.random()*dh;
-                var ovni= new CAAT.Actor().
-                        setBackgroundImage( ovniImage.getRef().setAnimationImageIndex( [1-i] ), true ).
-                        setLocation( ox, oy ).
-                        enableEvents(false).
-                        addBehavior(
-                            new CAAT.PathBehavior().
-                                    setFrameTime(0,0).
-                                    setPath(
-                                        new CAAT.Path().setLinear( ox,oy, ox,oy )
-                                    ).
-                                    addListener(
-                                        {
-                                            prevTime : -1,
-                                            smokeTime: TT,
-                                            nextSmokeTime: 100,
-                                            behaviorExpired : function(behaviour,time) {
-                                                var endCoord= behaviour.path.endCurvePosition();
-                                                behaviour.setPath(
-                                                        new CAAT.Path().setCubic(
-                                                            endCoord.x,
-                                                            endCoord.y,
-                                                            Math.random()*director.width,
-                                                            Math.random()*director.height,
-                                                            Math.random()*director.width,
-                                                            Math.random()*director.height,
-                                                            Math.random()*director.width,
-                                                            Math.random()*director.height) );
-                                                behaviour.setFrameTime( me.directorScene.time, 3000+Math.random()*3000 );
-                                            },
-                                            behaviorApplied : function( behavior, time, normalizedTime, actor, value) {
-                                                if ( -1==this.prevTime || time-this.prevTime>=this.nextSmokeTime ) {
-                                                    //var img= director.getImage('smoke');
-                                                    var img= smokeImage;
-                                                    var offset0= Math.random()*10*(Math.random()<.5?1:-1);
-                                                    var offset1= Math.random()*10*(Math.random()<.5?1:-1);
-                                                    var humo=
-                                                        new CAAT.Actor().
-                                                            setBackgroundImage(
-                                                                smokeImage.getRef().setAnimationImageIndex([0]),
-                                                                true).
-                                                            setLocation(
-                                                                offset0+actor.x+actor.width/2-img.singleWidth/2,
-                                                                offset1+actor.y+actor.height/2-img.singleHeight/2).
-                                                            setDiscardable(true).
-                                                            enableEvents(false).
-                                                            setFrameTime(time, this.smokeTime).
-                                                            addBehavior(
-                                                                new CAAT.ScaleBehavior().
-                                                                        setFrameTime(time, this.smokeTime).
-                                                                        setValues( .5,1.5, .5,1.5 )
-                                                            );
-                                                        humo.addBehavior(
-                                                            new CAAT.GenericBehavior().
-                                                                    setFrameTime(time, this.smokeTime).
-                                                                    setValues( 1, 0, null, null, function(value, target, actor ) {
-                                                                        actor.setAnimationImageIndex( [31-((value*31)>>0)] );
-                                                                    })
-                                                        );
-                                                    ovnitrail.addChild(humo);
-
-                                                    this.prevTime= time;
-                                                }
-
-                                            }
-                                        }
-                                    )
-                        );
-
-                this.directorScene.addChild(ovni);
-            }
-
-            if ( gardenSize>0 ) {
+            ////////////// garden
+            if ( 0 && gardenSize>0 ) {
                 // fondo. jardin.
                 this.directorScene.addChild(
                         new HN.Garden().
@@ -703,6 +883,7 @@
                         );
             }
 
+            //////////// scores
             this.buttonImage= new CAAT.SpriteImage().initialize(
                     director.getImage('buttons'), 7,3 );
 
@@ -712,7 +893,7 @@
             var yGap=       10;
 
             var scores= null;
-            if (CAAT.browser!=='iOS') {
+            if (false && CAAT.browser!=='iOS') {
                 scores=new CAAT.Actor().
                     setAsButton( this.buttonImage.getRef(), 18,19,20,18, function() {
                         director.audioPlay('11');
@@ -720,127 +901,24 @@
                     setBounds( dw-bw-10, dh-bh-10, bw, bh );
             }
 
-            var info_howto_ci= new CAAT.SpriteImage().initialize( director.getImage('info_howto'), 2, 3 );
-            var ihw= info_howto_ci.singleWidth;
-            var ihh= info_howto_ci.singleHeight;
-
-            var _info= new CAAT.Actor().
-                setBackgroundImage(
-                    new CAAT.SpriteImage().
-                        initialize( director.getImage('info'),1,1 ),
-                    true
-                ).
-                setOutOfFrameTime().
-                setAlpha(.9);
-            _info.mouseClick= function( e ) {
-                _info.emptyBehaviorList().
-                    setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
-                    addBehavior(
-                        new CAAT.PathBehavior().
-                            setFrameTime( me.directorScene.time, 1000 ).
-                            setValues( new CAAT.Path().setLinear( _info.x,0,-700,0 ) ).
-                            setInterpolator(new CAAT.Interpolator().createBounceOutInterpolator(false) ).
-                            addListener( {
-                                behaviorExpired : function(behavior, time, actor) {
-                                    _info.setOutOfFrameTime();
-                                }
-                            })
-                    );
-            };
-
+            ////////////// sound controls
             this.soundControls(director);
 
-            var info= new CAAT.Actor().
-                    setAsButton(info_howto_ci.getRef(), 0,1,2,0,
-                        function(button) {
-                            director.audioPlay('11');
-                            //__enterCSS( document.getElementById('about'), -700,0, 0,0, me.directorScene );
-                            _info.emptyBehaviorList().
-                                setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
-                                addBehavior(
-                                    new CAAT.PathBehavior().
-                                        setFrameTime( me.directorScene.time, 1000 ).
-                                        setValues(
-                                            new CAAT.Path().setLinear( -700,0,0,0 )
-                                        ).
-                                        setInterpolator(
-                                            new CAAT.Interpolator().createBounceOutInterpolator(false)
-                                        )
-                                )
-                        }).
-                    setBounds( 10, dh-10-ihh, ihw, ihh );
-
-
-            var _howto= new CAAT.Actor().
-                setBackgroundImage(
-                    new CAAT.SpriteImage().
-                        initialize( director.getImage('howto'),1,1 ),
-                    true
-                ).
-                setOutOfFrameTime().
-                setAlpha(.9);
-            _howto.mouseClick= function( e ) {
-                _howto.emptyBehaviorList().
-                    setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
-                    addBehavior(
-                        new CAAT.PathBehavior().
-                            setFrameTime( me.directorScene.time, 1000 ).
-                            setValues( new CAAT.Path().setLinear( _howto.x,0,700,0 ) ).
-                            setInterpolator(new CAAT.Interpolator().createBounceOutInterpolator(false) ).
-                            addListener( {
-                                behaviorExpired : function(behavior, time, actor) {
-                                    _howto.setOutOfFrameTime();
-                                }
-                            })
-                    );
-            };
-            var howto= new CAAT.Actor().
-                    setAsButton(info_howto_ci.getRef(), 3,4,5,3,
-                        function() {
-                            director.audioPlay('11');
-                            _howto.emptyBehaviorList().
-                                setFrameTime( me.directorScene.time, Number.MAX_VALUE ).
-                                addBehavior(
-                                    new CAAT.PathBehavior().
-                                        setFrameTime( me.directorScene.time, 1000 ).
-                                        setValues(
-                                            new CAAT.Path().setLinear( 700,0,0,0 )
-                                        ).
-                                        setInterpolator(
-                                            new CAAT.Interpolator().createBounceOutInterpolator(false)
-                                        )
-                                )
-                        }).
-                    setBounds( 10, dh-10-ihh-ihh-5, ihw, ihh );
-
-            if ( director.width<director.height ) {
-                CAAT.modules.LayoutUtils.row(
-                    this.directorScene,
-                    [
-                        info,
-                        howto
-                    ],
-                    {
-                        padding_left:   195,
-                        padding_right:  195,
-                        top:            director.height/2+100
-                    });
-            }
-
+            ////////////// level buttons
             this.createModeButtons();
 
-            this.directorScene.addChild(info);
-            this.directorScene.addChild(howto);
-            if ( CAAT.browser!=='iOS' ) {
+            if ( false && CAAT.browser!=='iOS' ) {
                 this.directorScene.addChild(scores);
             }
 
 
+            ////////////// Sumon logo
             var logoi= director.getImage('logo');
             var logo= new CAAT.Actor().
                     setBackgroundImage(logoi).
-                    setFrameTime( 1500, Number.MAX_VALUE ).
                     enableEvents(false);
+            logo.setLocation( (dw - logo.width)/2, -10 );
+
             if ( director.width<director.height ) {
                 logo.
                     setBackgroundImage(logoi, false).
@@ -848,19 +926,6 @@
                     setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE );
             }
 
-            var xp= (dw - logo.width)/2;
-            logo.addBehavior(
-                    new CAAT.PathBehavior().
-                            setPath(
-                                new CAAT.LinearPath().
-                                    setInitialPosition(xp, -logo.height).
-                                    setFinalPosition(xp, -10)
-                            ).
-                            setFrameTime( 1500, 1000 ).
-                            setInterpolator(
-                                new CAAT.Interpolator().createBounceOutInterpolator(false)
-                            )
-            );
             this.directorScene.addChild(logo);
 
             var madeWith= new CAAT.Actor();
@@ -877,11 +942,77 @@
             madeWith.setLocation( dw-( director.width>director.height ? 100 : madeWithCI.singleWidth), 0 );
             this.directorScene.addChild(madeWith);
 
-            this.directorScene.addChild(_info);
-            this.directorScene.addChild(_howto);
+
+            ///////// info & howto
+            var info_howto_ci=  new CAAT.SpriteImage().initialize( director.getImage('info_howto'), 2, 3 );
+            var info=          this.createInfoButton(info_howto_ci);
+            var howto=           this.createHowtoButton(info_howto_ci);
+
+            this.directorScene.addChild(howto.howto);
+            this.directorScene.addChild(info.info);
+            this.directorScene.addChild(howto.howtod);
+            this.directorScene.addChild(info.infod);
+
+            if ( director.width<director.height ) {
+                CAAT.modules.LayoutUtils.row(
+                    this.directorScene,
+                    [info.info,howto.howto],
+                    {
+                        padding_left:   195,
+                        padding_right:  195,
+                        top:            director.height/2+100
+                    });
+            }
 
 
+            /////////// fps
+/*
+            this.numbersImageSmall= new CAAT.SpriteImage().initialize(
+                    director.getImage('numberssmall'), 1,10 );
 
+            var me= this;
+            var C=20;
+            var count=0;
+            var fpsc=0;
+            var fps= new CAAT.Actor().setBounds(0,0,120,40);
+            fps.__fps=0;
+            fps.paintActor= function( director, time ) {
+
+                this.invalidate();
+
+                CAAT.Actor.prototype.__paintActor.call(this,director,time);
+                
+                fpsc+= CAAT.FRAME_TIME;
+
+                count++;
+                if ( !(count%C) ) {
+                    this.__fps= ((C*1000)/fpsc)>>0;
+                    fpsc=0;
+                    count=0;
+                }
+
+                this.__fps=''+this.__fps;
+
+                var ctx= director.ctx;
+                var im= me.numbersImageSmall;
+
+                ctx.fillStyle= 'rgb(32,32,32)';
+                ctx.fillRect(0,0,this.__fps.length*im.singleWidth+10, 10+im.singleHeight);
+
+                for( var i=0; i<this.__fps.length;i++ ) {
+                    var c= this.__fps.charAt(i);
+                    c= parseInt(c,10);
+
+                    if ( c>=0 && c<=9 ) {
+                        im.setSpriteIndex(c);
+                        im.paint( director, 0, i*im.singleWidth+5, 5 );
+                    }
+                }
+
+            };
+
+            this.directorScene.addChild( fps );
+*/
             return this;
         },
         soundControls : function(director) {

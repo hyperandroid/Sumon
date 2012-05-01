@@ -1,4 +1,7 @@
 /**
+ * See LICENSE file.
+ *
+ * Game model..
  */
 
 (function() {
