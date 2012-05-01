@@ -873,7 +873,7 @@
             }
 
             ////////////// garden
-            if ( 0 && gardenSize>0 ) {
+            if ( gardenSize>0 ) {
                 // fondo. jardin.
                 this.directorScene.addChild(
                         new HN.Garden().
