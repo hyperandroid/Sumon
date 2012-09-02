@@ -923,7 +923,8 @@
                 logo.
                     setBackgroundImage(logoi, false).
                     setSize( logoi.width*.8, logoi.height*.8 ).
-                    setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE );
+                    setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE).
+                    setLocation( (dw - logoi.width *.8)/2, -10 );
             }
 
             this.directorScene.addChild(logo);
@@ -933,7 +934,8 @@
             if ( CAAT.browser!=='iOS' ) {
                     madeWith.setAsButton( madeWithCI, 0,1,2,0,
                         function(button) {
-                            window.open('http://labs.hyperandroid.com', 'Hyperandroid');
+                            window.open('http://labs.hyperandroid.com/static/caat', 'Hyperandroid');
+
                         });
             } else {
                 madeWith.setBackgroundImage(madeWithCI, true);

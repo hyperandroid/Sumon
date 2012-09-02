@@ -17,7 +17,7 @@ function __CAAT__loadingScene(director) {
             new CAAT.GenericBehavior().
                 setFrameTime(TIME/2, 0).
                 setValues( 1, 0, null, null, function(value,target,actor) {
-                    actor.setBackgroundImage( director.getImage('splash1'), true )
+                    actor.setBackgroundImage( director.getImage('splash1'), true );
                 })
         );
     scene.addChild(background);
@@ -133,12 +133,40 @@ function __end_loading(director, images) {
 
     var gardenScene= new HN.GardenScene().create(
         director,
-        (director.getRenderType()==='CANVAS') ? 120 : 0);
+        CocoonJS.available ? 0 : 120 );
 
     var gameScene= new HN.GameScene().create(director, HN.GameModes.respawn );
     gardenScene.gameScene= gameScene;
 
     gameScene.addGameListener( gardenScene );
+
+    if ( CocoonJS.available ) {
+
+        var req= 60*2*1000;
+
+        CocoonJS.AdController.init( {
+            preloadFullScreen : true,
+            preloadBanner     : true
+        });
+        CocoonJS.AdController.setBannerLayout( CocoonJS.AdController.Layout.BOTTOM_CENTER );
+        CocoonJS.AdController.showBanner();
+
+        CocoonJS.AdController.addEventListener( "onfullscreenshow", function() {
+            CAAT.endLoop();
+        });
+        CocoonJS.AdController.addEventListener( "onfullscreenhide", function() {
+            CAAT.loop(60);
+            HN.INTERSTITIAL= false;
+            director.createTimer( director.time, req, function( time, ttime, ttask ) {
+                HN.INTERSTITIAL= true;
+            });
+        });
+
+        director.createTimer( director.time, req, function() {
+            HN.INTERSTITIAL= true;
+        });
+
+    }
 
     director.easeIn(
             0,
@@ -192,15 +220,16 @@ function __Hypernumbers_init()   {
 
     // uncomment to avoid decimal point coordinates.
     // Runs faster on anything but latest chrome.
-    // CAAT.setCoordinateClamping(false);
+    CAAT.setCoordinateClamping(false);
 
     // uncomment to show CAAT's debug bar
-    //CAAT.DEBUG=1;
+    CAAT.DEBUG=1;
 
     var director= createCanvas();
 
     // Uncomment to make the game conform to window's size.
-    //director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
+    director.enableResizeEvents(CAAT.Director.prototype.RESIZE_PROPORTIONAL);
+    //director.setClear( CAAT.Director.CLEAR_DIRTY_RECTS );
 
     HN.director= director;
 

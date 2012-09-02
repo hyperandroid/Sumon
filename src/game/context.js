@@ -38,7 +38,8 @@
             columns_initial:    8,
             rows_max:           8,
             columns_max:        8,
-            time_policy:        -1000,
+            time_policy:        500,
+            minTurnTime:        8000,
             initial_map:        [
                     [0,0,0,0,0,0,0,0],
                     [0,0,0,0,0,0,0,0],
@@ -94,6 +95,12 @@
             this.respawn();
         },
         changeSelection : function() {
+
+            // prevent brick selection while bricks are flying in.
+            if ( this.context.status!==this.context.ST_RUNNNING ) {
+                return;
+            }
+
             this.selected= !this.selected;
             this.context.selectionChanged(this);
         },
@@ -149,7 +156,7 @@
          * Numero inicial de ladrillos activos en el nivel.
          * Se puede especificar un mapa de ladrillos activos a traves del gameMode.
          * Como no tiene porque coincidir con todos los ladrillos de initialRows*initialColumns,
-         * necesito contarlos porque el juego no progresa de la animaci—n de entrada de ladrillos
+         * necesito contarlos porque el juego no progresa de la animaciâ€”n de entrada de ladrillos
          * volando hasta que todos llegan a su sitio.
          */
         initialBricks:  0,
@@ -519,7 +526,7 @@
             var cabenMas= true;
             var i,j;
             for( i=0; i<this.currentColumns; i++ ) {
-                // una columna est‡ llena. no seguir.
+                // una columna estâ€¡ llena. no seguir.
                 if ( !this.data[0][i].removed ) {
                     cabenMas= false;
                     break;

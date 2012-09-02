@@ -81,6 +81,7 @@
          * Make initialize animation.
          * @param brickPosition
          */
+            /*
         initializeForPlay: function( brickPosition, animationStartTime, animationDuration ) {
 
             var brickActor= this;
@@ -96,7 +97,7 @@
                 setFrameTime(animationStartTime, animationDuration );
 
         },
-
+*/
         setStatus : function(st) {
             this.status= st;
             return this;
@@ -113,12 +114,12 @@
                     setValues( 1, 1.2, 1, 1.2 ).
                     setPingPong();
 
-            if ( CAAT.browser!=='iOS' ) {
+            if ( !CocoonJS.available ) {
                 CAAT.setCursor('pointer');
             }
         },
         mouseExit : function(mouseEvent) {
-            if ( CAAT.browser!=='iOS' ) {
+            if ( !CocoonJS.available ) {
                 CAAT.setCursor('default');
             }
         },
@@ -319,7 +320,7 @@
                     },
                     behaviorApplied : function(behavior, time, normalizedTime, actor, value) {
 
-                        for( var i=0; i< (CAAT.browser==='iOS' ? 1 : 3); i++ ) {
+                        for( var i=0; i< (CocoonJS.available ? 1 : 3); i++ ) {
                             var offset0= Math.random()*10*(Math.random()<.5?1:-1);
                             var offset1= Math.random()*10*(Math.random()<.5?1:-1);
 
@@ -592,8 +593,10 @@
                                 addListener( {
                                     behaviorExpired : function(behavior, time, actor) {
 
-                                        for( i=0; i<snumber.length; i++ ) {
-                                            me.actors[i].setAnimationImageIndex([me.numbers[i]]);
+                                        if (null!=me.numbers ) {
+                                            for( i=0; i<snumber.length; i++ ) {
+                                                me.actors[i].setAnimationImageIndex([me.numbers[i]]);
+                                            }
                                         }
 
                                         actor.emptyBehaviorList();
@@ -789,7 +792,7 @@
                 ctx.lineCap=        'round';
                 ctx.lineJoin=       'round';
 
-                for( i=2; i<=(CAAT.browser==='iOS' ? 2 : 8); i+=2 ) {
+                for( i=2; i<=(CocoonJS.available ? 2 : 8); i+=2 ) {
 
                     ctx.lineWidth=  i;
                     ctx.globalAlpha= .5 - i/8/3;
@@ -1218,7 +1221,7 @@
         hideMultiplier : function() {
             this.multiplier=0;
             this.actornum.setVisible(false);
-            this.actorx.setVisible(false);
+            this.setVisible(false);
         },
         b1 : function(actor) {
             actor.emptyBehaviorList();
@@ -1247,7 +1250,7 @@
                         },
                         behaviorApplied : function(actor,time,normalizedTime,value) {}
                     });
-            actor.addBehavior(ab);            
+            actor.addBehavior(ab);
         },
         contextEvent : function( event ) {
 
@@ -1270,6 +1273,7 @@
                         this.b1(this.actorx);
                         this.b1(this.actornum);
 
+                        this.setVisible(true);
                     } else {
                         this.emptyBehaviorList();
                         this.b2(this.actorx);
@@ -1939,7 +1943,7 @@ var WW=10;
                             })
                         });
 
-            if ( CAAT.browser!=='iOS' ) {
+            if ( !CocoonJS.available ) {
                 var tweetImage= new CAAT.SpriteImage().initialize( director.getImage('tweet'), 1, 3 );
                 var tweet= new CAAT.Actor().
                         setAsButton( tweetImage, 0,1,2,0,
@@ -1961,7 +1965,7 @@ var WW=10;
             this.endGameActor.addChild(restart);
 
             var __buttons= [ menu, restart ];
-            if ( CAAT.browser!=='iOS' ) {
+            if ( !CocoonJS.available ) {
                 tweet.setLocation( 375, this.endGameActor.height - 25 - tweetImage.height );
                 this.endGameActor.addChild(tweet);
                 __buttons.push( tweet );
@@ -2080,43 +2084,12 @@ var WW=10;
 
             var i, j;
             var maxt= 0;
-            var animationDuration;
-            var animationStartTime;
-            var stepTime= 30;
-            var brickPosition;
+
             var context;
-/*
-            for( i=0; i<this.gameRows; i++ ) {
-                for( j=0; j<this.gameColumns; j++ ) {
-                    var brickActor= this.brickActors[i][j];
 
-                    if ( brickActor.brick.removed ) {
-                        brickActor.setOutOfFrameTime();
-                    } else {
-
-                        brickActor.
-                            setFrameTime( this.directorScene.time, Number.MAX_VALUE ).
-                            setAlpha(1).
-                            enableEvents(false).
-                            reset();
-
-                        animationDuration= 1000+((Math.random()*1000)>>0);
-                        brickPosition= this.getBrickPosition(i,j);
-
-                        animationStartTime= (i+j)*stepTime + this.directorScene.time;
-
-                        brickActor.initializeForPlay(brickPosition, animationStartTime, animationDuration );
-                        
-                        if ( animationDuration>maxt ) {
-                            maxt= animationDuration;
-                        }
-                    }
-                }
-            }
-*/
             var radius= Math.max(this.director.width,this.director.height );
             var angle=  Math.PI*2*Math.random();
-            var me=     this;
+
 
             var p0= Math.random()*this.director.width;
             var p1= Math.random()*this.director.height;
@@ -2124,7 +2097,7 @@ var WW=10;
             var p3= Math.random()*this.director.height;
 
 
-for( i=0; i<this.gameRows; i++ ) {
+            for( i=0; i<this.gameRows; i++ ) {
                 for( j=0; j<this.gameColumns; j++ ) {
                     var brickActor= this.brickActors[i][j];
 
@@ -2139,6 +2112,9 @@ for( i=0; i<this.gameRows; i++ ) {
                                 reset();
 
                         var random= (Math.random()*1000)>>0;
+                        if ( random>maxt ) {
+                            maxt= random;
+                        }
 
                         var brickPosition= this.getBrickPosition(i,j);
                         brickActor.pb.
@@ -2162,32 +2138,15 @@ for( i=0; i<this.gameRows; i++ ) {
                                     new CAAT.Interpolator().createExponentialInOutInterpolator(3,false) ).
                                 setFrameTime(this.directorScene.time , 1000+random);
 
+                        brickActor.enableEvents(false);
 
-                        brickActor.
-//                                emptyBehaviorList().
-//                                addBehavior(moveB).
-//                                addBehavior(sb).
-                                enableEvents(false);
-
-
-                        var actorCount=0;
-                        brickActor.pb.addListener( {
-                            behaviorExpired : function( behavior, time, actor ) {
-                                actorCount++;
-                                if ( actorCount==me.context.getLevelActiveBricks() ) {
-                                    brickActor.pb.emptyListenerList();
-                                    if ( me.context.status==me.context.ST_INITIALIZING ) {
-                                        me.context.setStatus( me.context.ST_RUNNNING );
-                                    }
-                                }
-                            }
-                        });
                     }
                 }
             }
 
 
             context= this.context;
+            // setup a timer which fires when all the bricks have stopped flying in.
             this.directorScene.createTimer(
                 this.directorScene.time,
                 maxt,
@@ -2546,6 +2505,11 @@ for( i=0; i<this.gameRows; i++ ) {
                                             ).
                                             addListener( {
                                                 behaviorExpired : function(behavior, time, actor) {
+
+                                                    if (HN.INTERSTITIAL) {
+                                                        CocoonJS.AdController.showFullscreen();
+                                                    }
+
                                                     behavior.setFrameTime( time, 3000 );
                                                     behavior.path.setFinalPosition(
                                                             me_endGameActor.x+(Math.random()<.5?1:-1)*(5+5*Math.random()),
@@ -2565,6 +2529,7 @@ for( i=0; i<this.gameRows; i++ ) {
                             }
                         } )
                 );
+
         },
         soundControls : function(director) {
             var ci= new CAAT.SpriteImage().initialize( director.getImage('sound'), 2,3 );
