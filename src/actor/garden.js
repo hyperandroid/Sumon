@@ -724,7 +724,9 @@
             var me= this;
 
             var _howto= new CAAT.Actor().
-                setBackgroundImage(new CAAT.SpriteImage().initialize( director.getImage('howto'),1,1 ) ).
+                setBackgroundImage(director.getImage('howto'), false ).
+                setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE).
+                setSize( HN.director.width, HN.director.height).
                 setOutOfFrameTime().
                 setAlpha(.9);
 
@@ -778,7 +780,9 @@
 
             // cartel entrante.
             var _info= new CAAT.Actor().
-                setBackgroundImage( new CAAT.SpriteImage().initialize( director.getImage('info'),1,1 ) ).
+                setBackgroundImage( director.getImage('info'), false ).
+                setSize( HN.director.width, HN.director.height).
+                setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE).
                 setOutOfFrameTime().
                 setAlpha(.9);
 
@@ -965,55 +969,6 @@
                     });
             }
 
-
-            /////////// fps
-/*
-            this.numbersImageSmall= new CAAT.SpriteImage().initialize(
-                    director.getImage('numberssmall'), 1,10 );
-
-            var me= this;
-            var C=20;
-            var count=0;
-            var fpsc=0;
-            var fps= new CAAT.Actor().setBounds(0,0,120,40);
-            fps.__fps=0;
-            fps.paintActor= function( director, time ) {
-
-                this.invalidate();
-
-                CAAT.Actor.prototype.__paintActor.call(this,director,time);
-                
-                fpsc+= CAAT.FRAME_TIME;
-
-                count++;
-                if ( !(count%C) ) {
-                    this.__fps= ((C*1000)/fpsc)>>0;
-                    fpsc=0;
-                    count=0;
-                }
-
-                this.__fps=''+this.__fps;
-
-                var ctx= director.ctx;
-                var im= me.numbersImageSmall;
-
-                ctx.fillStyle= 'rgb(32,32,32)';
-                ctx.fillRect(0,0,this.__fps.length*im.singleWidth+10, 10+im.singleHeight);
-
-                for( var i=0; i<this.__fps.length;i++ ) {
-                    var c= this.__fps.charAt(i);
-                    c= parseInt(c,10);
-
-                    if ( c>=0 && c<=9 ) {
-                        im.setSpriteIndex(c);
-                        im.paint( director, 0, i*im.singleWidth+5, 5 );
-                    }
-                }
-
-            };
-
-            this.directorScene.addChild( fps );
-*/
             return this;
         },
         soundControls : function(director) {
