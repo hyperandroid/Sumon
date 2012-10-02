@@ -1684,10 +1684,18 @@
                             setAxis( dw>dh ? CAAT.UI.BoxLayout.AXIS.X : CAAT.UI.BoxLayout.AXIS.Y ).
                             setVerticalAlignment( CAAT.UI.BoxLayout.ALIGNMENT.TOP ).
                             setHorizontalAlignment( CAAT.UI.BoxLayout.ALIGNMENT.CENTER).
-                            setHGap(25).
+                            setHGap(20).
                             setVGap(5).
                             setPadding( 0,0,10,0 );
             layout.doLayout( gameContainer );
+
+            if ( dw>dh ) {
+                // scale content if landscape.
+                var min= Math.min( gameContainer.width, gameContainer.height );
+                var scale=  Math.min(dw,dh) / min;
+                gameContainer.setScale( scale, scale );
+            }
+
 
             /////////////////////// particle container
             // just to accelerate events delivery
