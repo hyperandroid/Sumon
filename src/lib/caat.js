@@ -21,11 +21,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-Version: 0.4 build: 279
+Version: 0.4 build: 425
 
 Created on:
-DATE: 2012-09-02
-TIME: 17:59:08
+DATE: 2012-10-01
+TIME: 16:58:49
 */
 
 
@@ -71,11 +71,11 @@ function extend(subc, superc) {
     var subcp = subc.prototype;
 
     // Class pattern.
-    var F = function() {
+    var CAATObject = function() {
     };
-    F.prototype = superc.prototype;
+    CAATObject.prototype = superc.prototype;
 
-    subc.prototype = new F();       // chain prototypes.
+    subc.prototype = new CAATObject();       // chain prototypes.
     subc.superclass = superc.prototype;
     subc.prototype.constructor = subc;
 
@@ -1783,7 +1783,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return {boolean}
          */
 		contains : function(px,py) {
-			return px>=0 && px<this.width && py>=0 && py<this.height; 
+			//return px>=0 && px<this.width && py>=0 && py<this.height;
+            return px>=this.x && px<this.x1 && py>=this.y && py<this.y1;
 		},
         /**
          * Return whether this rectangle is empty, that is, has zero dimension.
@@ -2959,7 +2960,20 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
         }
 
     };
-})();/**
+})();(function() {
+
+    CAAT.Dimension= function(w,h) {
+        this.width= w;
+        this.height= h;
+        return this;
+    };
+
+    CAAT.Dimension.prototype= {
+        width   : 0,
+        height  : 0
+    };
+
+}());/**
  * See LICENSE file.
  *
  * Generate interpolator.
@@ -5268,6 +5282,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
         textDrawTime:       null,
         textRAFTime:        null,
         textDirtyRects:     null,
+        textDiscardDR:      null,
 
         frameTimeAcc :      0,
         frameRAFAcc :       0,
@@ -5434,6 +5449,11 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             "                        <span class=\"caat_debug_description\">DirtyRects: </span>"+
             "                        <span class=\"caat_debug_value\" id=\"textDirtyRects\">0</span>"+
             "                    </span>"+
+            "                    <span>"+
+            "                        <span class=\"caat_debug_bullet\" style=\"background-color:#00f;\"></span>"+
+            "                        <span class=\"caat_debug_description\">Discard DR: </span>"+
+            "                        <span class=\"caat_debug_value\" id=\"textDiscardDR\">0</span>"+
+            "                    </span>"+
             "                </div>"+
             "            </div>"+
             "            <div id=\"caat-debug-tab1-content\">"+
@@ -5578,6 +5598,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             this.textEntitiesActive= document.getElementById("textEntitiesActive");
             this.textDraws= document.getElementById("textDraws");
             this.textDirtyRects= document.getElementById("textDirtyRects");
+            this.textDiscardDR= document.getElementById("textDiscardDR");
 
 
             this.canDebug= true;
@@ -5618,6 +5639,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             this.textEntitiesActive.innerHTML= this.statistics.size_active;
             this.textDirtyRects.innerHTML= this.statistics.size_dirtyRects;
             this.textDraws.innerHTML= this.statistics.draws;
+            this.textDiscardDR.innerHTML= this.statistics.size_discarded_by_dirty_rects;
         },
 
         paint : function( rafValue ) {
@@ -5704,6 +5726,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
      * @constructor
      */
 	CAAT.Actor = function() {
+        this.CLASS= CAAT.Actor;
+
 		this.behaviorList= [];
 //        this.keyframesList= [];
         this.lifecycleListenerList= [];
@@ -5776,6 +5800,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 		y:						0,      // y position on parent. In parent's local coord. system.
 		width:					0,      // Actor's width. In parent's local coord. system.
 		height:					0,      // Actor's height. In parent's local coord. system.
+        preferredSize:          null,   // actor's preferred size for layout. {CAAT.Dimension}
+        minimumSize:            null,   // actor's minimum size for layout. {CAAT.Dimension},
 		start_time:				0,      // Start time in Scene time.
 		duration:				Number.MAX_VALUE,   // Actor duration in Scene time
 		clip:					false,  // should clip the Actor's content against its contour.
@@ -5838,8 +5864,6 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
         size_active:            1,      // number of animated children
         size_total:             1,
 
-        __next:                 null,
-
         __d_ax:                 -1,     // for drag-enabled actors.
         __d_ay:                 -1,
         gestureEnabled:         false,
@@ -5852,6 +5876,61 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
         isAA                :   true,   // is this actor/container Axis aligned ? if so, much faster inverse matrices
                                         // can be calculated.
+
+        invalidateLayout : function() {
+            if ( this.parent && !this.parent.layoutInvalidated ) {
+                this.parent.invalidateLayout();
+            }
+
+            return this;
+        },
+
+        __validateLayout : function() {
+
+        },
+
+        /**
+         * Set this actors preferred layout size.
+         *
+         * @param pw {number}
+         * @param ph {number}
+         * @return {*}
+         */
+        setPreferredSize : function( pw, ph ) {
+            if ( !this.preferredSize ) {
+                this.preferredSize= new CAAT.Dimension();
+            }
+            this.preferredSize.width= pw;
+            this.preferredSize.height= ph;
+            return this;
+        },
+
+        getPreferredSize : function() {
+            return this.preferredSize ? this.preferredSize :
+                        this.getMinimumSize();
+        },
+
+        /**
+         * Set this actors minimum layout size.
+         *
+         * @param pw {number}
+         * @param ph {number}
+         * @return {*}
+         */
+        setMinimumSize : function( pw, ph ) {
+            if ( !this.minimumSize ) {
+                this.minimumSize= new CAAT.Dimension();
+            }
+
+            this.minimumSize.width= pw;
+            this.minimumSize.height= ph;
+            return this;
+        },
+
+        getMinimumSize : function() {
+            return this.minimumSize ? this.minimumSize :
+                        new CAAT.Dimension(this.width, this.height);
+        },
 
         /**
          * @deprecated
@@ -5869,7 +5948,12 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @param delay {=number} time to wait before start moving
          * @param interpolator {=CAAT.Interpolator} a CAAT.Interpolator instance
          */
-        moveTo : function( x, y, duration, delay, interpolator ) {
+        moveTo : function( x, y, duration, delay, interpolator, callback ) {
+
+            if ( x===this.x && y===this.y ) {
+                return;
+            }
+
             var id= '__moveTo';
             var b= this.getBehavior( id );
             if ( !b ) {
@@ -5885,6 +5969,15 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                 b.setInterpolator( interpolator );
             }
 
+            if ( callback ) {
+                b.lifecycleListenerList= [];
+                b.addListener( {
+                    behaviorExpired : function(behavior, time, actor) {
+                        callback( behavior, time, actor );
+                    }
+                });
+            }
+
             return this;
         },
 
@@ -5892,13 +5985,18 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          *
          * @param angle {number} new rotation angle
          * @param duration {number} time to rotate
-         * @param delay {=number} millis to start rotation
-         * @param anchorX {=number} rotation anchor x
-         * @param anchorY {=number} rotation anchor y
-         * @param interpolator {=CAAT.Interpolator}
+         * @param delay {number=} millis to start rotation
+         * @param anchorX {number=} rotation anchor x
+         * @param anchorY {number=} rotation anchor y
+         * @param interpolator {CAAT.Interpolator=}
          * @return {*}
          */
         rotateTo : function( angle, duration, delay, anchorX, anchorY, interpolator ) {
+
+            if ( angle===this.rotationAngle ) {
+                return;
+            }
+
             var id= '__rotateTo';
             var b= this.getBehavior( id );
             if ( !b ) {
@@ -5930,6 +6028,11 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return {*}
          */
         scaleTo : function( scaleX, scaleY, duration, delay, anchorX, anchorY, interpolator ) {
+
+            if ( this.scaleX===scaleX && this.scaleY===scaleY ) {
+                return;
+            }
+
             var id= '__scaleTo';
             var b= this.getBehavior( id );
             if ( !b ) {
@@ -5939,7 +6042,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                 this.addBehavior(b);
             }
 
-            b.setValues( this.scaleX, this.scaleY, scaleX, scaleY, anchorX, anchorY ).
+            b.setValues( this.scaleX, scaleX, this.scaleY, scaleY, anchorX, anchorY ).
                 setDelayTime( delay ? delay : 0, duration);
 
             if ( interpolator ) {
@@ -6004,6 +6107,13 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return {*}
          */
         __scale1To : function( axis, scale, duration, delay, anchorX, anchorY, interpolator ) {
+
+            if (( axis === CAAT.Scale1Behavior.AXIS_X && scale===this.scaleX) ||
+                ( axis === CAAT.Scale1Behavior.AXIS_Y && scale===this.scaleY)) {
+
+                    return;
+            }
+
             var id= '__scaleXTo';
             var b= this.getBehavior( id );
             if ( !b ) {
@@ -6212,7 +6322,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @deprecated
          */
         centerOn : function( x,y ) {
-            this.setLocation( x-this.width/2, y-this.height/2 );
+            this.setPosition( x-this.width/2, y-this.height/2 );
             return this;
         },
         /**
@@ -6223,7 +6333,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return this
          */
         centerAt : function(x,y) {
-            return this.centerOn(x,y);
+            this.setPosition( x-this.width/2, y-this.height/2 );
+            return this;
         },
         /**
          * If GL is enables, get this background image's texture page, otherwise it will fail.
@@ -6580,8 +6691,10 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return this
          */
 	    setSize : function( w, h )   {
-	        this.width= w|0;
-	        this.height= h|0;
+
+	        this.width= w;
+	        this.height= h;
+
             this.dirty= true;
 
             return this;
@@ -6596,12 +6709,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return this
          */
 	    setBounds : function(x, y, w, h)  {
-            /*
-            this.x= x|0;
-            this.y= y|0;
-            this.width= w|0;
-            this.height= h|0;
-            */
+
             this.x= x;
             this.y= y;
             this.width= w;
@@ -7269,13 +7377,14 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
             var AABB= this.AABB;
             var vv= this.viewVertices;
+            var vvv, m, x, y, w, h;
 
             if ( this.isAA ) {
-                var m= this.worldModelViewMatrix.matrix;
-                var x= m[2];
-                var y= m[5];
-                var w= this.width;
-                var h= this.height;
+                m= this.worldModelViewMatrix.matrix;
+                x= m[2];
+                y= m[5];
+                w= this.width;
+                h= this.height;
                 AABB.x= x;
                 AABB.y= y;
                 AABB.x1= x + w;
@@ -7284,7 +7393,6 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                 AABB.height= h;
 
                 if ( CAAT.GLRENDER ) {
-                    var vvv;
                     vvv= vv[0];
                     vvv.x=x;
                     vvv.y=y;
@@ -7301,9 +7409,6 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
                 return this;
             }
-
-
-            var vvv;
 
             vvv= vv[0];
             vvv.x=0;
@@ -7336,7 +7441,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             if ( vvv.y > ymax ) {
                 ymax=vvv.y;
             }
-            var vvv= vv[1];
+            vvv= vv[1];
             if ( vvv.x < xmin ) {
                 xmin=vvv.x;
             }
@@ -7349,7 +7454,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             if ( vvv.y > ymax ) {
                 ymax=vvv.y;
             }
-            var vvv= vv[2];
+            vvv= vv[2];
             if ( vvv.x < xmin ) {
                 xmin=vvv.x;
             }
@@ -7362,7 +7467,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             if ( vvv.y > ymax ) {
                 ymax=vvv.y;
             }
-            var vvv= vv[3];
+            vvv= vv[3];
             if ( vvv.x < xmin ) {
                 xmin=vvv.x;
             }
@@ -7396,7 +7501,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          */
         paintActor : function(director, time) {
 
-            if (!this.visible) {
+            if (!this.visible || !director.inDirtyRect(this) ) {
                 return true;
             }
 
@@ -7487,9 +7592,9 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
         },
         /**
          * TODO: set GLcoords for different image transformations.
+         *
          * @param glCoords
          * @param glCoordsIndex
-         * @param z
          */
         setGLCoords : function( glCoords, glCoordsIndex ) {
 
@@ -7508,7 +7613,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
             glCoords[glCoordsIndex++]= vv[3].x;
             glCoords[glCoordsIndex++]= vv[3].y;
-            glCoords[glCoordsIndex++]= 0;
+            glCoords[glCoordsIndex  ]= 0;
 
         },
         /**
@@ -7583,6 +7688,14 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             this.clipPath= clipPath;
             return this;
         },
+
+        stopCacheAsBitmap : function() {
+            if ( this.cached ) {
+                this.backgroundImage= null;
+                this.cached= false;
+            }
+        },
+
         /**
          *
          * @param time {Number=}
@@ -7598,14 +7711,26 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             var director= {
                 ctx: ctx,
                 crc: ctx,
-                modelViewMatrix: new CAAT.Matrix()
+                modelViewMatrix: new CAAT.Matrix(),
+                worldModelViewMatrix: new CAAT.Matrix(),
+                dirtyRectsEnabled : false,
+                inDirtyRect : function() { return true; }
             };
+
+            var pmv=    this.modelViewMatrix;
+            var pwmv=   this.worldModelViewMatrix;
+
+            this.modelViewMatrix =  new CAAT.Matrix();
+            this.worldModelViewMatrix =  new CAAT.Matrix();
 
             this.cached= false;
             this.paintActor(director,time);
             this.setBackgroundImage(canvas);
 
             this.cached= strategy ? strategy : CAAT.Actor.CACHE_SIMPLE;
+
+            this.modelViewMatrix =  pmv;
+            this.worldModelViewMatrix =  pwmv;
 
             return this;
         },
@@ -7614,10 +7739,10 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * single size.
          * 
          * @param buttonImage {CAAT.SpriteImage} sprite image with button's state images.
-         * @param _iNormal {number} button's normal state image index
-         * @param _iOver {number} button's mouse over state image index
-         * @param _iPress {number} button's pressed state image index
-         * @param _iDisabled {number} button's disabled state image index
+         * @param iNormal {number} button's normal state image index
+         * @param iOver {number} button's mouse over state image index
+         * @param iPress {number} button's pressed state image index
+         * @param iDisabled {number} button's disabled state image index
          * @param fn {function(button{CAAT.Actor})} callback function
          */
         setAsButton : function( buttonImage, iNormal, iOver, iPress, iDisabled, fn ) {
@@ -7775,6 +7900,9 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 	CAAT.ActorContainer= function(hint) {
 
 		CAAT.ActorContainer.superclass.constructor.call(this);
+
+        this.CLASS= CAAT.ActorContainer;
+
 		this.childrenList=          [];
 		this.activeChildren=        [];
         this.pendingChildrenList=   [];
@@ -7791,13 +7919,63 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
 	CAAT.ActorContainer.prototype= {
 
-        childrenList        :   null,       // the list of children contained.
+        childrenList        :   null,                   // the list of children contained.
         activeChildren      :   null,
         pendingChildrenList :   null,
-
         addHint             :   0,
         boundingBox         :   null,
         runion              :   new CAAT.Rectangle(),   // Watch out. one for every container.
+
+        layoutManager       :   null,                   // a layout manager instance.
+        layoutInvalidated   :   true,
+
+        setLayout : function( layout ) {
+            this.layoutManager= layout;
+            return this;
+        },
+
+        setBounds : function( x,y,w,h ) {
+            CAAT.ActorContainer.superclass.setBounds.call( this,x,y,w,h );
+            if ( CAAT.currentDirector && !CAAT.currentDirector.inValidation ) {
+                this.invalidateLayout();
+            }
+            return this;
+        },
+
+        __validateLayout : function() {
+
+            this.__validateTree();
+            this.layoutInvalidated= false;
+        },
+
+        __validateTree : function() {
+            if ( this.layoutManager && this.layoutManager.isInvalidated() ) {
+
+                CAAT.currentDirector.inValidation= true;
+
+                this.layoutManager.doLayout( this );
+
+                for( var i=0; i<this.getNumChildren(); i+=1 ) {
+                    this.getChildAt(i).__validateLayout();
+                }
+            }
+        },
+
+        invalidateLayout : function() {
+            this.layoutInvalidated= true;
+
+            if ( this.layoutManager ) {
+                this.layoutManager.invalidateLayout(this);
+
+                for( var i=0; i<this.getNumChildren(); i+=1 ) {
+                    this.getChildAt(i).invalidateLayout();
+                }
+            }
+        },
+
+        getLayout : function() {
+            return this.layoutManager;
+        },
 
         /**
          * Draws this ActorContainer and all of its children screen bounding box.
@@ -7815,7 +7993,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             for( var i=0; i<cl.length; i++ ) {
                 cl[i].drawScreenBoundingBox(director,time);
             }
-            CAAT.ActorContainer.superclass.drawScreenBoundingBox.call(this,director,time);
+            sc_drawScreenBoundingBox.call(this,director,time);
         },
         /**
          * Removes all children from this ActorContainer.
@@ -7836,27 +8014,29 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          */
         paintActor : function(director, time ) {
 
-            if (!this.visible) {
-                return true;
+            if (!this.visible ) {
+                return false;
             }
 
             var ctx= director.ctx;
 
             ctx.save();
 
-            CAAT.ActorContainer.superclass.paintActor.call(this,director,time);
+            if ( !sc_paintActor.call(this,director,time) ) {
+                return false;
+            }
 
             if ( this.cached===__CD ) {
-                return;
+                return false;
             }
 
             if ( !this.isGlobalAlpha ) {
                 this.frameAlpha= this.parent ? this.parent.frameAlpha : 1;
             }
 
-            //for( var actor= this.activeChildren; actor; actor=actor.__next ) {
             for( var i= 0, l= this.activeChildren.length; i<l; ++i ) {
                 var actor= this.activeChildren[i];
+
                 if ( actor.visible ) {
                     ctx.save();
                     actor.paintActor(director,time);
@@ -7884,7 +8064,6 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                 this.frameAlpha= this.parent ? this.parent.frameAlpha : 1;
             }
 
-//            for( var actor= this.activeChildren; actor; actor=actor.__next ) {
             for( var i= 0, l= this.activeChildren.length; i<l; ++i ) {
                 var actor= this.activeChildren[i];
                 actor.paintActor(director,time);
@@ -7893,20 +8072,20 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
         },
         paintActorGL : function(director,time) {
 
-            var i, c;
+            var i, l, c;
+
             if (!this.visible) {
                 return true;
             }
 
-            CAAT.ActorContainer.superclass.paintActorGL.call(this,director,time);
+            sc_paintActorGL.call(this,director,time);
 
             if ( !this.isGlobalAlpha ) {
                 this.frameAlpha= this.parent.frameAlpha;
             }
 
-//            for( c= this.activeChildren; c; c=c.__next ) {
-            for( var i= 0, l= this.activeChildren.length; i<l; ++i ) {
-                var c= this.activeChildren[i];
+            for( i= 0, l= this.activeChildren.length; i<l; ++i ) {
+                c= this.activeChildren[i];
                 c.paintActorGL(director,time);
             }
 
@@ -7929,13 +8108,16 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             this.activeChildren= [];
             var last= null;
 
-            if (false===CAAT.ActorContainer.superclass.animate.call(this,director,time)) {
+            if (false===sc_animate.call(this,director,time)) {
                 return false;
             }
 
             if ( this.cached===__CD ) {
                 return true;
             }
+
+            this.__validateLayout();
+            CAAT.currentDirector.inValidation= false;
 
             var i,l;
 
@@ -7946,7 +8128,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             var pcl= this.pendingChildrenList;
             for( i=0; i<pcl.length; i++ ) {
                 var child= pcl[i];
-                this.addChild(child);
+                this.addChildImmediately(child);
             }
 
             this.pendingChildrenList= [];
@@ -7960,20 +8142,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                 actor.time= time;
                 this.size_total+= actor.size_total;
                 if ( actor.animate(director, time) ) {
-                    /*
-                    if ( !this.activeChildren ) {
-                        this.activeChildren= actor;
-                        actor.__next= null;
-                        last= actor;
-                    } else {
-                        actor.__next= null;
-                        last.__next= actor;
-                        last= actor;
-                    }*/
                     this.activeChildren.push( actor );
-
                     this.size_active+= actor.size_active;
-
                 } else {
                     if ( actor.expired && actor.discardable ) {
                         markDelete.push(actor);
@@ -8011,7 +8181,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @param child a CAAT.Actor instance.
          * @return this.
          */
-        addChildImmediately : function(child) {
+        addChildImmediately : function(child, constraint) {
             return this.addChild(child);
         },
         /**
@@ -8028,7 +8198,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @param child a CAAT.Actor object instance.
          * @return this
          */
-		addChild : function(child) {
+		addChild : function(child, constraint) {
 
             if ( child.parent!=null ) {
                 throw('adding to a container an element with parent.');
@@ -8038,11 +8208,16 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             this.childrenList.push(child);
             child.dirty= true;
 
-            /**
-             * if Conforming size, recalc new bountainer size.
-             */
-            if ( this.addHint===CAAT.ActorContainer.AddHint.CONFORM ) {
-                this.recalcSize();
+            if ( this.layoutManager ) {
+                this.layoutManager.addChild( child, constraint );
+                this.invalidateLayout();
+            } else {
+                /**
+                 * if Conforming size, recalc new bountainer size.
+                 */
+                if ( this.addHint===CAAT.ActorContainer.AddHint.CONFORM ) {
+                    this.recalcSize();
+                }
             }
 
             return this;
@@ -8090,8 +8265,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 			if( index <= 0 ) {
                 child.parent= this;
                 child.dirty= true;
-                //this.childrenList.unshift(child);  // unshift unsupported on IE
                 this.childrenList.splice( 0, 0, child );
+                this.invalidateLayout();
 				return this;
             } else {
                 if ( index>=this.childrenList.length ) {
@@ -8102,6 +8277,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 			child.parent= this;
             child.dirty= true;
 			this.childrenList.splice(index, 0, child);
+            this.invalidateLayout();
 
             return this;
 		},
@@ -8126,11 +8302,11 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          *
          * @param child a CAAT.Actor object instance.
          *
-         * @return an integer indicating the Actor's z-order.
+         * @return {number}
          */
 		findChild : function(child) {
             var cl= this.childrenList;
-            var i=0;
+            var i;
             var len = cl.length;
 
 			for( i=0; i<len; i++ ) {
@@ -8153,6 +8329,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                 return rm[0];
             }
 
+            this.invalidateLayout();
+
             return null;
         },
         /**
@@ -8165,7 +8343,9 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          */
 		removeChild : function(child) {
 			var pos= this.findChild(child);
-            return this.removeChildAt(pos);
+            var ret= this.removeChildAt(pos);
+
+            return ret;
 		},
         removeFirstChild : function() {
             var first= this.childrenList.shift();
@@ -8173,6 +8353,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             if ( first.isVisible() && CAAT.currentDirector.dirtyRectsEnabled ) {
                 CAAT.currentDirector.scheduleDirtyRect( first.AABB );
             }
+
+            this.invalidateLayout();
 
             return first;
         },
@@ -8184,8 +8366,12 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                     CAAT.currentDirector.scheduleDirtyRect( last.AABB );
                 }
 
+                this.invalidateLayout();
+
                 return last;
             }
+
+            return null;
         },
         /**
          * @private
@@ -8198,7 +8384,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          */
 		findActorAtPosition : function(point) {
 
-			if( null===CAAT.ActorContainer.superclass.findActorAtPosition.call(this,point) ) {
+			if( null===sc_findActorAtPosition.call(this,point) ) {
 				return null;
 			}
 
@@ -8227,7 +8413,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             for( var i=cl.length-1; i>=0; i-- ) {
                 cl[i].destroy();
             }
-            CAAT.ActorContainer.superclass.destroy.call(this);
+            sc_destroy.call(this);
 
             return this;
         },
@@ -8278,11 +8464,20 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
                     cl.splice( index, 0, nActor[0] );
                 }
+
+                this.invalidateLayout();
             }
         }
 	};
 
     extend( CAAT.ActorContainer, CAAT.Actor, null);
+
+    var sc_drawScreenBoundingBox= CAAT.ActorContainer.superclass.drawScreenBoundingBox;
+    var sc_paintActor= CAAT.ActorContainer.superclass.paintActor;
+    var sc_paintActorGL= CAAT.ActorContainer.superclass.paintActorGL;
+    var sc_animate= CAAT.ActorContainer.superclass.animate;
+    var sc_findActorAtPosition =CAAT.ActorContainer.superclass.findActorAtPosition;
+    var sc_destroy =CAAT.ActorContainer.superclass.destroy;
 
 })();
 
@@ -8301,9 +8496,9 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 		CAAT.TextActor.superclass.constructor.call(this);
 		this.font= "10px sans-serif";
 		this.textAlign= "left";
-		this.textBaseline= "top";
 		this.outlineColor= "black";
         this.clip= false;
+        this.__calcFontData();
 
 		return this;
 	};
@@ -8314,10 +8509,11 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 	CAAT.TextActor.prototype= {
 		font:			    null,   // a valid canvas rendering context font description. Default font
                                     // will be "10px sans-serif".
+        fontData:           null,
 		textAlign:		    null,	// a valid canvas rendering context textAlign string. Any of:
                                     // start, end, left, right, center.
                                     // defaults to "left".
-		textBaseline:	    null,	// a valid canvas rendering context textBaseLine string. Any of:
+		textBaseline:	    "top",	// a valid canvas rendering context textBaseLine string. Any of:
                                     // top, hanging, middle, alphabetic, ideographic, bottom.
                                     // defaults to "top".
 		fill:			    true,   // a boolean indicating whether the text should be filled.
@@ -8342,14 +8538,17 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return this;
          */
         setFill : function( fill ) {
+            this.stopCacheAsBitmap();
             this.fill= fill;
             return this;
         },
         setLineWidth : function( lw ) {
+            this.stopCacheAsBitmap();
             this.lineWidth= lw;
             return this;
         },
         setTextFillStyle : function( style ) {
+            this.stopCacheAsBitmap();
             this.textFillStyle= style;
             return this;
         },
@@ -8359,6 +8558,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return this;
          */
         setOutline : function( outline ) {
+            this.stopCacheAsBitmap();
             this.outline= outline;
             return this;
         },
@@ -8373,6 +8573,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return this.
          */
         setOutlineColor : function( color ) {
+            this.stopCacheAsBitmap();
             this.outlineColor= color;
             return this;
         },
@@ -8382,16 +8583,20 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @return this
          */
 		setText : function( sText ) {
+            this.stopCacheAsBitmap();
 			this.text= sText;
             if ( null===this.text || this.text==="" ) {
                 this.width= this.height= 0;
             }
-            this.calcTextSize( CAAT.director[0] );
+            this.calcTextSize( CAAT.currentDirector );
+
+            this.invalidate();
 
             return this;
         },
         setTextAlign : function( align ) {
             this.textAlign= align;
+            this.__setLocation();
             return this;
         },
         /**
@@ -8407,11 +8612,13 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @param baseline
          */
         setTextBaseline : function( baseline ) {
+            this.stopCacheAsBitmap();
             this.textBaseline= baseline;
             return this;
 
         },
         setBaseline : function( baseline ) {
+            this.stopCacheAsBitmap();
             return this.setTextBaseline(baseline);
         },
         /**
@@ -8421,18 +8628,85 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          */
         setFont : function(font) {
 
+            this.stopCacheAsBitmap();
+
             if ( !font ) {
                 font= "10px sans-serif";
             }
 
             if ( font instanceof CAAT.Font ) {
-                font= font.setAsSpriteImage();
+                font.setAsSpriteImage();
+            } else if (font instanceof CAAT.SpriteImage ) {
+                CAAT.log("WARN: setFont will no more accept a CAAT.SpriteImage as argument.");
             }
             this.font= font;
+
+            this.__calcFontData();
             this.calcTextSize( CAAT.director[0] );
 
             return this;
 		},
+
+        setLocation : function( x,y) {
+            this.lx= x;
+            this.ly= y;
+            this.__setLocation();
+            return this;
+        },
+
+        setPosition : function( x,y ) {
+            this.lx= x;
+            this.ly= y;
+            this.__setLocation();
+            return this;
+        },
+
+        setBounds : function( x,y,w,h ) {
+            this.lx= x;
+            this.ly= y;
+            this.setSize(w,h);
+            this.__setLocation();
+            return this;
+        },
+
+        setSize : function( w, h ) {
+            CAAT.TextActor.superclass.setSize.call(this,w,h);
+            this.__setLocation();
+            return this;
+        },
+
+        /**
+         * @private
+         */
+        __setLocation : function() {
+
+            var nx, ny;
+
+            if ( this.textAlign==="center" ) {
+                nx= this.lx - this.width/2;
+            } else if ( this.textAlign==="right" || this.textAlign==="end" ) {
+                nx= this.lx - this.width;
+            } else {
+                nx= this.lx;
+            }
+
+            if ( this.textBaseline==="bottom" ) {
+                ny= this.ly - this.height;
+            } else if ( this.textBaseline==="middle" ) {
+                ny= this.ly - this.height/2;
+            } else if ( this.textBaseline==="alphabetic" ) {
+                ny= this.ly - this.fontData.ascent;
+            } else {
+                ny= this.ly;
+            }
+
+            CAAT.TextActor.superclass.setLocation.call( this, nx, ny );
+        },
+
+        centerAt : function(x,y) {
+            this.textAlign="left";
+            return CAAT.TextActor.superclass.centerAt.call( this, x, y );
+        },
 
         /**
          * Calculates the text dimension in pixels and stores the values in textWidth and textHeight
@@ -8458,6 +8732,23 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                 this.textHeight=this.font.stringHeight();
                 this.width= this.textWidth;
                 this.height= this.textHeight;
+
+                var as= (this.font.singleHeight *.8)>>0;
+                this.fontData= {
+                    height : this.font.singleHeight,
+                    ascent : as,
+                    descent: this.font.singleHeight - as
+                };
+
+                return this;
+            }
+
+            if ( this.font instanceof CAAT.Font ) {
+                this.textWidth= this.font.stringWidth( this.text );
+                this.textHeight=this.font.stringHeight();
+                this.width= this.textWidth;
+                this.height= this.textHeight;
+                this.fontData= this.font.getFontData();
                 return this;
             }
 
@@ -8470,27 +8761,32 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             if (this.width===0) {
                 this.width= this.textWidth;
             }
-
-            try {
-                var pos= this.font.indexOf("px");
+/*
+            var pos= this.font.indexOf("px");
+            if (-1===pos) {
+                pos= this.font.indexOf("pt");
+            }
+            if ( -1===pos ) {
+                // no pt or px, so guess a size: 32. why not ?
+                this.textHeight= 32;
+            } else {
                 var s =  this.font.substring(0, pos );
                 this.textHeight= parseInt(s,10);
-
-                // needed to calculate the descent.
-                // no context.getDescent(font) WTF !!!
-                this.textHeight+= (this.textHeight/4)>>0;
-            } catch(e) {
-                this.textHeight=20; // default height;
             }
+*/
 
-            if ( this.height===0 ) {
-                this.height= this.textHeight;
-            }
+            this.textHeight= this.fontData.height;
+            this.setSize( this.textWidth, this.textHeight );
 
             ctx.restore();
 
             return this;
         },
+
+        __calcFontData : function() {
+            this.fontData= CAAT.Font.getFontMetrics( this.font );
+        },
+
         /**
          * Custom paint method for TextActor instances.
          * If the path attribute is set, the text will be drawn traversing the path.
@@ -8518,27 +8814,25 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
 			var ctx= director.ctx;
 			
-			if ( this.font instanceof CAAT.SpriteImage ) {
+			if ( this.font instanceof CAAT.Font || this.font instanceof CAAT.SpriteImage ) {
 				return this.drawSpriteText(director,time);
 			}
 
 			if( null!==this.font ) {
 				ctx.font= this.font;
 			}
-			if ( null!==this.textAlign ) {
-				ctx.textAlign= this.textAlign;
-			}
-			if ( null!==this.textBaseline ) {
-				ctx.textBaseline= this.textBaseline;
-			}
-			if ( this.fill && null!==this.textFillStyle ) {
-                ctx.fillStyle= this.textFillStyle;
-			}
-            if ( this.outline && null!==this.outlineColor ) {
-                ctx.strokeStyle= this.outlineColor;
-            }
+
+            /**
+             * always draw text with middle or bottom, top is buggy in FF.
+             * @type {String}
+             */
+            ctx.textBaseline="alphabetic";
 
 			if (null===this.path) {
+
+                if ( null!==this.textAlign ) {
+                    ctx.textAlign= this.textAlign;
+                }
 
                 var tx=0;
                 if ( this.textAlign==='center') {
@@ -8548,24 +8842,20 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                 }
 
 				if ( this.fill ) {
-					ctx.fillText( this.text, tx, 0 );
-					if ( this.outline ) {
+                    if ( null!==this.textFillStyle ) {
+                        ctx.fillStyle= this.textFillStyle;
+                    }
+					ctx.fillText( this.text, tx, this.fontData.ascent  );
+				}
 
-						// firefox necesita beginPath, si no, dibujara ademas el cuadrado del
-						// contenedor de los textos.
-//						if ( null!==this.outlineColor ) {
-//							ctx.strokeStyle= this.outlineColor;
-//						}
-						ctx.beginPath();
-                        ctx.lineWidth= this.lineWidth;
-						ctx.strokeText( this.text, tx, 0 );
-					}
-				} else {
-					if ( null!==this.outlineColor ) {
-						ctx.strokeStyle= this.outlineColor;
-					}
+                if ( this.outline ) {
+                    if (null!==this.outlineColor ) {
+                        ctx.strokeStyle= this.outlineColor;
+                    }
+
+                    ctx.lineWidth= this.lineWidth;
                     ctx.beginPath();
-					ctx.strokeText( this.text, tx, 0 );
+					ctx.strokeText( this.text, tx, this.fontData.ascent );
 				}
 			}
 			else {
@@ -8581,6 +8871,14 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 		drawOnPath : function(director, time) {
 
 			var ctx= director.ctx;
+
+            if ( this.fill && null!==this.textFillStyle ) {
+                ctx.fillStyle= this.textFillStyle;
+            }
+
+            if ( this.outline && null!==this.outlineColor ) {
+                ctx.strokeStyle= this.outlineColor;
+            }
 
 			var textWidth=this.sign * this.pathInterpolator.getPosition(
                     (time%this.pathDuration)/this.pathDuration ).y * this.path.getLength() ;
@@ -8607,7 +8905,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 					    ctx.fillText(caracter,0,0);
                     }
                     if ( this.outline ) {
-//                        ctx.strokeStyle= this.outlineColor;
+                        ctx.beginPath();
+                        ctx.lineWidth= this.lineWidth;
                         ctx.strokeText(caracter,0,0);
                     }
 
@@ -8625,7 +8924,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          */
 		drawSpriteText: function(director, time) {
 			if (null===this.path) {
-				this.font.drawString( director.ctx, this.text, 0, 0);
+				this.font.drawText( this.text, director.ctx, 0, 0);
 			} else {
 				this.drawSpriteTextOnPath(director, time);
 			}
@@ -8647,7 +8946,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
 			for( var i=0; i<this.text.length; i++ ) {
 				var character= this.text[i].toString();
-				var charWidth= this.font.stringWidth(character); //context.measureText( caracter ).width;
+				var charWidth= this.font.stringWidth(character);
 
 				var pathLength= this.path.getLength();
 
@@ -8663,7 +8962,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 				context.translate( p0.x|0, p0.y|0 );
 				context.rotate( angle );
 				
-				var y = this.textBaseline === "bottom" ? 0 - this.font.height : 0;
+				var y = this.textBaseline === "bottom" ? 0 - this.font.getHeight() : 0;
 				
 				this.font.drawString(context,character, 0, y);
 
@@ -8814,6 +9113,13 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @param time an integer with the Scene time the Actor is being drawn.
          */
         paintCircle : function(director,time) {
+
+            if ( this.cached ) {
+                CAAT.Actor.prototype.paint.call( this, director, time );
+                return;
+            }
+
+
             var ctx= director.crc;
 
             ctx.lineWidth= this.lineWidth;
@@ -8822,14 +9128,14 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             if ( null!==this.fillStyle ) {
                 ctx.fillStyle= this.fillStyle;
                 ctx.beginPath();
-                ctx.arc( this.width/2, this.height/2, Math.min(this.width,this.height)/2, 0, 2*Math.PI, false );
+                ctx.arc( this.width/2, this.height/2, Math.min(this.width,this.height)/2- this.lineWidth/2, 0, 2*Math.PI, false );
                 ctx.fill();
             }
 
             if ( null!==this.strokeStyle ) {
                 ctx.strokeStyle= this.strokeStyle;
                 ctx.beginPath();
-                ctx.arc( this.width/2, this.height/2, Math.min(this.width,this.height)/2, 0, 2*Math.PI, false );
+                ctx.arc( this.width/2, this.height/2, Math.min(this.width,this.height)/2- this.lineWidth/2, 0, 2*Math.PI, false );
                 ctx.stroke();
             }
         },
@@ -8842,6 +9148,12 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
          * @param time an integer with the Scene time the Actor is being drawn.
          */
         paintRectangle : function(director,time) {
+
+            if ( this.cached ) {
+                CAAT.Actor.prototype.paint.call( this, director, time );
+                return;
+            }
+
             var ctx= director.crc;
 
             ctx.lineWidth= this.lineWidth;
@@ -9944,7 +10256,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             size_total:         0,
             size_active:        0,
             size_dirtyRects:    0,
-            draws:              0
+            draws:              0,
+            size_discarded_by_dirty_rects: 0
         },
         currentTexturePage: 0,
         currentOpacity:     1,
@@ -9970,6 +10283,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
         dirtyRectsIndex     :   0,
         dirtyRectsEnabled   :   false,
         nDirtyRects         :   0,
+        drDiscarded         :   0,      // discarded by dirty rects.
 
         stopped             :   false,  // is stopped, this director will do nothing.
 
@@ -10092,6 +10406,8 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                 CAAT.unregisterResizeListener(this);
                 this.onResizeCallback= null;
             }
+
+            return this;
         },
         /**
          * Set this director's bounds as well as its contained scenes.
@@ -10414,6 +10730,7 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
             this.statistics.size_total= 0;
             this.statistics.size_active=0;
             this.statistics.draws=      0;
+            this.statistics.size_discarded_by_dirty_rects= 0;
         },
 
         /**
@@ -10575,6 +10892,27 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
             this.frameCounter++;
         },
+
+        inDirtyRect : function( actor ) {
+
+            if ( !this.dirtyRectsEnabled || CAAT.DEBUG_DIRTYRECTS ) {
+                return true;
+            }
+
+            var dr= this.cDirtyRects;
+            var i;
+            var aabb= actor.AABB;
+
+            for( i=0; i<dr.length; i++ ) {
+                if ( dr[i].intersects( aabb ) ) {
+                    return true;
+                }
+            }
+
+            this.statistics.size_discarded_by_dirty_rects+= actor.size_total;
+            return false;
+        },
+
         /**
          * A director is a very special kind of actor.
          * Its animation routine simple sets its modelViewMatrix in case some transformation's been
@@ -12357,9 +12695,11 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
                     }
 
                     if ( CAAT.DEBUG ) {
+                        this.statistics.size_discarded_by_dirtyRects+= this.drDiscarded;
                         this.statistics.size_total+= c.size_total;
                         this.statistics.size_active+= c.size_active;
                         this.statistics.size_dirtyRects= this.nDirtyRects;
+
                     }
 
                 }
@@ -12406,6 +12746,10 @@ function proxyObject(object, preMethod, postMethod, errorMethod, getter, setter)
 
             this.addHandlers(this.canvas);
         };
+
+        CAAT.Director.prototype.inDirtyRect= function() {
+            return true;
+        }
     }
 
     extend(CAAT.Director, CAAT.ActorContainer, null);
@@ -12585,6 +12929,16 @@ CAAT.setCoordinateClamping= function( clamp ) {
     }
 };
 
+/**
+ * Control how CAAT.Font and CAAT.TextActor control font ascent/descent values.
+ * 0 means it will guess values from a font height
+ * 1 means it will try to use css to get accurate ascent/descent values and fall back to the previous method
+ *   in case it couldn't.
+ *
+ * @type {Number}
+ */
+CAAT.CSS_TEXT_METRICS=      0;
+
 CAAT.TOUCH_AS_MOUSE=        1;
 CAAT.TOUCH_AS_MULTITOUCH=   2;
 
@@ -12667,6 +13021,10 @@ CAAT.unregisterResizeListener= function(director) {
         }
     }
 };
+
+CAAT.getCurrentSceneTime= function() {
+    return CAAT.currentDirector.getCurrentScene().time;
+}
 
 /**
  * Pressed key codes.
@@ -13045,6 +13403,7 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
 
     if ( !CAAT.director ) {
         CAAT.director=[];
+        CAAT.currentDirector= director;
     }
     CAAT.director.push(director);
     CAAT.GlobalEnableEvents();
@@ -13173,6 +13532,7 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
         TR_FLIP_VERTICAL:		2,
         TR_FLIP_ALL:			3,
         TR_FIXED_TO_SIZE:       4,
+        TR_FIXED_WIDTH_TO_SIZE: 6,
         TR_TILE:                5,
 
         image:                  null,
@@ -13213,6 +13573,14 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
         getHeight : function() {
             var el= this.mapInfo[this.spriteIndex];
             return el.height;
+        },
+
+        getWrappedImageWidth : function() {
+            return this.image.width;
+        },
+
+        getWrappedImageHeight : function() {
+            return this.image.height;
         },
 
         /**
@@ -13498,6 +13866,28 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
 
             return this;
         },
+        /**
+         * Draws the subimage pointed by imageIndex.
+         * @param canvas a canvas context.
+         * @param imageIndex {number} a subimage index.
+         * @param x {number} x position in canvas to draw the image.
+         * @param y {number} y position in canvas to draw the image.
+         *
+         * @return this
+         */
+        paintScaledWidth : function(director, time, x, y) {
+            this.setSpriteIndexAtTime(time);
+            var el= this.mapInfo[this.spriteIndex];
+
+            director.ctx.drawImage(
+                this.image,
+                el.x, el.y,
+                el.width, el.height,
+                (this.offsetX+x)>>0, (this.offsetY+y)>>0,
+                this.ownerActor.width, el.height);
+
+            return this;
+        },
         paintChunk : function( ctx, dx,dy, x, y, w, h ) {
             ctx.drawImage( this.image, x,y,w,h, dx,dy,w,h );
         },
@@ -13652,6 +14042,9 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
                 case this.TR_FIXED_TO_SIZE:
                     this.paint= this.paintScaled;
                     break;
+                case this.TR_FIXED_WIDTH_TO_SIZE:
+                    this.paint= this.paintScaledWidth;
+                    break;
                 case this.TR_TILE:
                     this.paint= this.paintTiled;
                     break;
@@ -13701,7 +14094,9 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
             if ( this.animationImageIndex.length>1 ) {
                 if ( this.prevAnimationTime===-1 )	{
                     this.prevAnimationTime= time;
-                    this.spriteIndex=0;
+
+                    //thanks Phloog and ghthor, well spotted.
+                    this.spriteIndex= this.animationImageIndex[0];
                     this.ownerActor.invalidate();
                 }
                 else	{
@@ -13710,8 +14105,10 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
                     ttime/= this.changeFPS;
                     ttime%= this.animationImageIndex.length;
                     var idx= this.animationImageIndex[Math.floor(ttime)];
-                    this.spriteIndex= idx;
-                    this.ownerActor.invalidate();
+//                    if ( this.spriteIndex!==idx ) {
+                        this.spriteIndex= idx;
+                        this.ownerActor.invalidate();
+//                    }
                 }
             }
         },
@@ -14361,30 +14758,30 @@ CAAT.RegisterDirector= function __CAATGlobal_RegisterDirector(director) {
 			switch(anchor) {
 			case CAAT.Actor.prototype.ANCHOR_TOP:
                 if ( isIn ) {
-                    pb.setPath( new CAAT.Path().setLinear( 0, -this.height, 0, 0) );
+                    pb.setPath( new CAAT.Path().setLinear( 0, -this.height+1, 0, 0) );
                 } else {
-                    pb.setPath( new CAAT.Path().setLinear( 0, 0, 0, -this.height) );
+                    pb.setPath( new CAAT.Path().setLinear( 0, 0, 0, -this.height+1) );
                 }
                 break;
             case CAAT.Actor.prototype.ANCHOR_BOTTOM:
                 if ( isIn ) {
-                    pb.setPath( new CAAT.Path().setLinear( 0, this.height, 0, 0) );
+                    pb.setPath( new CAAT.Path().setLinear( 0, this.height-1, 0, 0) );
                 } else {
-                    pb.setPath( new CAAT.Path().setLinear( 0, 0, 0, this.height) );
+                    pb.setPath( new CAAT.Path().setLinear( 0, 0, 0, this.height-1) );
                 }
                 break;
             case CAAT.Actor.prototype.ANCHOR_LEFT:
                 if ( isIn ) {
-                    pb.setPath( new CAAT.Path().setLinear( -this.width, 0, 0, 0) );
+                    pb.setPath( new CAAT.Path().setLinear( -this.width+1, 0, 0, 0) );
                 } else {
-                    pb.setPath( new CAAT.Path().setLinear( 0, 0, -this.width, 0) );
+                    pb.setPath( new CAAT.Path().setLinear( 0, 0, -this.width+1, 0) );
                 }
                 break;
             case CAAT.Actor.prototype.ANCHOR_RIGHT:
                 if ( isIn ) {
-                    pb.setPath( new CAAT.Path().setLinear( this.width, 0, 0, 0) );
+                    pb.setPath( new CAAT.Path().setLinear( this.width-1, 0, 0, 0) );
                 } else {
-                    pb.setPath( new CAAT.Path().setLinear( 0, 0, this.width, 0) );
+                    pb.setPath( new CAAT.Path().setLinear( 0, 0, this.width-1, 0) );
                 }
                 break;
             }
@@ -15641,6 +16038,120 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
         return this;
     };
 
+
+    CAAT.Font.getFontMetrics= function( font ) {
+        var ret;
+        if ( CAAT.CSS_TEXT_METRICS ) {
+            try {
+                ret= getFontMetricsCSS( font );
+                return ret;
+            } catch(e) {
+
+            }
+        }
+
+        return getFontMetricsNoCSS(font);
+    };
+
+    var getFontMetricsNoCSS= function( font ) {
+
+        var re= /(\d+)p[x|t]/i;
+        var res= re.exec( font );
+
+        var height;
+
+        if ( !res ) {
+            height= 32;     // no px or pt value in font. assume 32.)
+        } else {
+            height= res[1]|0;
+        }
+
+        var ascent= height-1;
+        var h= (height + height *.2)|0;
+        return {
+            height  : h,
+            ascent  : ascent,
+            descent : h - ascent
+        }
+
+    };
+
+    /**
+     * Totally ripped from:
+     *
+     * jQuery (offset function)
+     * Daniel Earwicker: http://stackoverflow.com/questions/1134586/how-can-you-find-the-height-of-text-on-an-html-canvas
+     *
+     * @param font
+     * @return {*}
+     */
+    var getFontMetricsCSS = function( font ) {
+
+        function offset( elem ) {
+
+            var box, docElem, body, win, clientTop, clientLeft, scrollTop, scrollLeft, top, left;
+            var doc= elem && elem.ownerDocument;
+            var docElem = doc.documentElement;
+
+            box = elem.getBoundingClientRect();
+           	//win = getWindow( doc );
+
+            body= document.body;
+            win= doc.nodeType === 9 ? doc.defaultView || doc.parentWindow : false;
+
+           	clientTop  = docElem.clientTop  || body.clientTop  || 0;
+           	clientLeft = docElem.clientLeft || body.clientLeft || 0;
+           	scrollTop  = win.pageYOffset || docElem.scrollTop;
+           	scrollLeft = win.pageXOffset || docElem.scrollLeft;
+           	top  = box.top  + scrollTop  - clientTop;
+           	left = box.left + scrollLeft - clientLeft;
+
+            return { top: top, left: left };
+        }
+
+        try {
+            var text = document.createElement("span");
+            text.style.font = font;
+            text.innerHTML = "Hg";
+
+            var block = document.createElement("div");
+            block.style.display = "inline-block";
+            block.style.width = "1px";
+            block.style.heigh = "0px";
+
+            var div = document.createElement("div");
+            div.appendChild(text);
+            div.appendChild(block);
+
+
+            var body = document.body;
+            body.appendChild(div);
+
+            try {
+
+                var result = {};
+
+                block.style.verticalAlign = 'baseline';
+                result.ascent = offset(block).top - offset(text).top;
+
+                block.style.verticalAlign = 'bottom';
+                result.height = offset(block).top - offset(text).top;
+
+                result.ascent= Math.ceil(result.ascent);
+                result.height= Math.ceil(result.height);
+
+                result.descent = result.height - result.ascent;
+
+                return result;
+
+            } finally {
+                body.removeChild( div );
+            }
+        } catch (e) {
+            return null;
+        }
+    };
+
     var UNKNOWN_CHAR_WIDTH= 10;
 
     CAAT.Font.prototype= {
@@ -15657,6 +16168,8 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
         charMap     :   null,
 
         height      :   0,
+        ascent      :   0,
+        descent     :   0,
 
         setPadding : function( padding ) {
             this.padding= padding;
@@ -15709,11 +16222,9 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
             this.padding= padding;
 
             var canvas= document.createElement('canvas');
-            canvas.width=   1;
-            canvas.height=  1;
             var ctx= canvas.getContext('2d');
 
-            ctx.textBaseline= 'top';
+            ctx.textBaseline= 'bottom';
             ctx.font= this.fontStyle+' '+this.fontSize+""+this.fontSizeUnit+" "+ this.font;
 
             var textWidth= 0;
@@ -15728,11 +16239,45 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
                 textWidth+= cw;
             }
 
+
+            var fontMetrics= CAAT.Font.getFontMetrics( ctx.font );
+            var baseline="alphabetic", yoffset, canvasheight;
+
+            canvasheight= fontMetrics.height;
+            this.ascent=  fontMetrics.ascent;
+            this.descent= fontMetrics.descent;
+            this.height=  fontMetrics.height;
+            yoffset=      fontMetrics.ascent;
+/*
+            if ( !CAAT.CSS_TEXT_METRICS ) {
+                baseline= "alphabetic";
+
+                fontHeight= CAAT.Font.getFontHeightNoCSS( ctx.font );
+
+                canvasheight= fontHeight.;
+                yoffset= this.fontSize;
+
+                this.height= canvasheight;
+                this.ascent= this.fontSize;
+                this.descent= this.height - this.ascent;
+            } else {
+
+                fontHeight= CAAT.Font.getFontHeight( ctx.font );
+                baseline="alphabetic";
+                canvasheight= fontHeight.height;
+                yoffset= fontHeight.ascent;
+                this.ascent= Math.ceil(fontHeight.ascent | 0 );
+                this.descent= Math.ceil(fontHeight.descent | 0);
+                this.height= this.ascent + this.descent;
+
+            }
+*/
             canvas.width= textWidth;
-            canvas.height= (this.fontSize*1.5)>>0;
+            canvas.height= canvasheight;
             ctx= canvas.getContext('2d');
 
-            ctx.textBaseline= 'top';
+            //ctx.textBaseline= 'bottom';
+            ctx.textBaseline= baseline;
             ctx.font= this.fontStyle+' '+this.fontSize+""+this.fontSizeUnit+" "+ this.font;
             ctx.fillStyle= this.fillStyle;
             ctx.strokeStyle= this.strokeStyle;
@@ -15742,11 +16287,11 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
             x=0;
             for( i=0; i<chars.length; i++ ) {
                 cchar= chars.charAt(i);
-                ctx.fillText( cchar, x+padding, 0 );
+                ctx.fillText( cchar, x+padding, yoffset );
                 if ( this.strokeStyle ) {
                     ctx.beginPath();
                     ctx.lineWidth= this.strokeSize;
-                    ctx.strokeText( cchar, x+padding,  0 );
+                    ctx.strokeText( cchar, x+padding,  yoffset );
                 }
                 this.charMap[cchar]= {
                     x:      x + padding,
@@ -15755,8 +16300,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
                 x+= charWidth[i];
             }
 
-            this.image= CAAT.modules.ImageUtil.optimize( canvas, 32, { top: true, bottom: true, left: false, right: false } );
-            this.height= this.image.height;
+            this.image= canvas;
 
             return this;
         },
@@ -15780,7 +16324,29 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
                     y: 0
                 };
             }
-            return new CAAT.SpriteImage().initializeAsGlyphDesigner( this.image, cm );
+
+            this.spriteImage= new CAAT.SpriteImage().initializeAsGlyphDesigner( this.image, cm );
+            return this;
+        },
+
+        getAscent : function( ) {
+            return this.ascent;
+        },
+
+        getDescent : function() {
+            return this.descent;
+        },
+
+        stringHeight : function() {
+            return this.height;
+        },
+
+        getFontData : function() {
+            return {
+                height : this.height,
+                ascent : this.ascent,
+                descent : this.descent
+            };
         },
 
         stringWidth : function( str ) {
@@ -15826,6 +16392,10 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
             var str= "image/png";
             var strData= this.image.toDataURL(str);
             document.location.href= strData.replace( str, "image/octet-stream" );
+        },
+
+        drawSpriteText : function( director, time ) {
+            this.spriteImage.drawSpriteText( director, time );
         }
 
     };
@@ -16207,7 +16777,8 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 		newPosition:		null,   // spare holder for getPosition coordinate return.
 
         applyAsPath : function(director) {
-            director.ctx.lineTo( this.points[0].x, this.points[1].y );
+            // Fixed: Thanks https://github.com/roed
+            director.ctx.lineTo( this.points[1].x, this.points[1].y );
         },
         setPoint : function( point, index ) {
             if ( index===0 ) {
@@ -16598,6 +17169,7 @@ CAAT.modules.CircleManager = CAAT.modules.CircleManager || {};/**
 
         setRadius : function( r ) {
             this.radius= r;
+			return this;
         },
 
         isArcTo : function() {
@@ -20111,3 +20683,1800 @@ function makeOrtho(left, right, bottom, top, znear, zfar) {
     };
 
 })();
+(function() {
+
+    CAAT.UI= {
+
+        defaultFont : "24px Arial"
+
+    };
+
+}());
+(function() {
+
+    CAAT.UI.Padding= function() {
+        return this;
+    };
+
+    CAAT.UI.Padding.prototype= {
+        left:   2,
+        right:  2,
+        top:    2,
+        bottom: 2
+    };
+
+
+    CAAT.UI.AXIS= {
+        X : 0,
+        Y : 1
+    };
+
+    CAAT.UI.ALIGNMENT= {
+        LEFT :  0,
+        RIGHT:  1,
+        CENTER: 2,
+        TOP:    3,
+        BOTTOM: 4,
+        JUSTIFY:5
+    };
+
+    CAAT.UI.LayoutManager= function( ) {
+
+        this.newChildren= [];
+        this.padding= new CAAT.UI.Padding();
+        return this;
+    };
+
+    CAAT.UI.LayoutManager.newElementInterpolator= new CAAT.Interpolator().createElasticOutInterpolator(1.1,.7);
+    CAAT.UI.LayoutManager.moveElementInterpolator= new CAAT.Interpolator().createExponentialOutInterpolator(2);
+
+    CAAT.UI.LayoutManager.prototype= {
+
+        padding : null,
+        invalid : true,
+
+        hgap        : 2,
+        vgap        : 2,
+        animated    : false,
+        newChildren : null,
+
+        setAnimated : function( animate ) {
+            this.animated= animate;
+            return this;
+        },
+
+        setHGap : function( gap ) {
+            this.hgap= gap;
+            this.invalidateLayout();
+            return this;
+        },
+
+        setVGap : function( gap ) {
+            this.vgap= gap;
+            this.invalidateLayout();
+            return this;
+        },
+
+        setAllPadding : function( s ) {
+            this.padding.left= s;
+            this.padding.right= s;
+            this.padding.top= s;
+            this.padding.bottom= s;
+            this.invalidateLayout();
+            return this;
+        },
+
+        setPadding : function( l,r, t,b ) {
+            this.padding.left= l;
+            this.padding.right= r;
+            this.padding.top= t;
+            this.padding.bottom= b;
+            this.invalidateLayout();
+            return this;
+        },
+
+        addChild : function( child, constraints ) {
+            this.newChildren.push( child );
+        },
+
+        removeChild : function( child ) {
+
+        },
+
+        doLayout : function( container ) {
+            this.newChildren= [];
+            this.invalid= false;
+        },
+
+        invalidateLayout : function( container ) {
+            this.invalid= true;
+        },
+
+        getMinimumLayoutSize : function( container ) {
+
+        },
+
+        getPreferredLayoutSize : function(container ) {
+
+        },
+
+        isValid : function() {
+            return !this.invalid;
+        },
+
+        isInvalidated : function() {
+            return this.invalid;
+        }
+    };
+}());
+
+(function() {
+
+    /**
+     *
+     * Layouts a container children in equal sized cells organized in rows by columns.
+     *
+     * @param rows {number=} number of initial rows, defaults to 2.
+     * @param columns {number=} number of initial columns, defaults to 2.
+     * @return {*}
+     * @constructor
+     */
+    CAAT.UI.GridLayout= function( rows, columns ) {
+        CAAT.UI.GridLayout.superclass.constructor.call(this);
+        this.rows= rows;
+        this.columns= columns;
+
+        return this;
+    };
+
+    CAAT.UI.GridLayout.prototype= {
+        rows    : 0,
+        columns : 2,
+
+        doLayout : function( container ) {
+
+            var nactors= container.getNumChildren();
+            if (nactors === 0) {
+                return;
+            }
+
+            var nrows = this.rows;
+            var ncols = this.columns;
+
+            if (nrows > 0) {
+                ncols = Math.floor( (nactors + nrows - 1) / nrows );
+            } else {
+                nrows = Math.floor( (nactors + ncols - 1) / ncols );
+            }
+
+            var totalGapsWidth = (ncols - 1) * this.hgap;
+            var widthWOInsets = container.width - (this.padding.left + this.padding.right);
+            var widthOnComponent = Math.floor( (widthWOInsets - totalGapsWidth) / ncols );
+            var extraWidthAvailable = Math.floor( (widthWOInsets - (widthOnComponent * ncols + totalGapsWidth)) / 2 );
+
+            var totalGapsHeight = (nrows - 1) * this.vgap;
+            var heightWOInsets = container.height - (this.padding.top + this.padding.bottom);
+            var heightOnComponent = Math.floor( (heightWOInsets - totalGapsHeight) / nrows );
+            var extraHeightAvailable = Math.floor( (heightWOInsets - (heightOnComponent * nrows + totalGapsHeight)) / 2 );
+
+            for (var c = 0, x = this.padding.left + extraWidthAvailable; c < ncols ; c++, x += widthOnComponent + this.hgap) {
+                for (var r = 0, y = this.padding.top + extraHeightAvailable; r < nrows ; r++, y += heightOnComponent + this.vgap) {
+                    var i = r * ncols + c;
+                    if (i < nactors) {
+                        var child= container.getChildAt(i);
+                        if ( child.isVisible() && child.isInAnimationFrame( CAAT.getCurrentSceneTime() ) ) {
+                            if ( !this.animated ) {
+                                child.setBounds(x, y, widthOnComponent, heightOnComponent);
+                            } else {
+                                if ( child.width!==widthOnComponent || child.height!==heightOnComponent ) {
+                                    child.setSize(widthOnComponent, heightOnComponent);
+                                    if ( this.newChildren.indexOf( child ) !==-1 ) {
+                                        child.setPosition( x,y );
+                                        child.setScale(0.01,0.01);
+                                        child.scaleTo( 1,1, 500, 0,.5,.5, CAAT.UI.LayoutManager.newElementInterpolator );
+                                    } else {
+                                        child.moveTo( x, y, 500, 0, CAAT.UI.LayoutManager.moveElementInterpolator );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            CAAT.UI.GridLayout.superclass.doLayout.call(this, container);
+        },
+
+        getMinimumLayoutSize : function( container ) {
+            var nrows = this.rows;
+            var ncols = this.columns;
+            var nchildren= container.getNumChildren();
+            var w=0, h=0, i;
+
+            if (nrows > 0) {
+                ncols = Math.ceil( (nchildren + nrows - 1) / nrows );
+            } else {
+                nrows = Math.ceil( (nchildren + ncols - 1) / ncols );
+            }
+
+            for ( i= 0; i < nchildren; i+=1 ) {
+                var actor= container.getChildAt(i);
+                if ( actor.isVisible() && actor.isInAnimationFrame( CAAT.getCurrentSceneTime() ) ) {
+                    var d = actor.getMinimumSize();
+                    if (w < d.width) {
+                        w = d.width;
+                    }
+                    if (h < d.height) {
+                        h = d.height;
+                    }
+                }
+            }
+
+            return new CAAT.Dimension(
+                this.padding.left + this.padding.right + ncols * w + (ncols - 1) * this.hgap,
+                this.padding.top + this.padding.bottom + nrows * h + (nrows - 1) * this.vgap
+            );
+        },
+
+        getPreferredLayoutSize : function( container ) {
+
+            var nrows = this.rows;
+            var ncols = this.columns;
+            var nchildren= container.getNumChildren();
+            var w=0, h=0, i;
+
+            if (nrows > 0) {
+                ncols = Math.ceil( (nchildren + nrows - 1) / nrows );
+            } else {
+                nrows = Math.ceil( (nchildren + ncols - 1) / ncols );
+            }
+
+            for ( i= 0; i < nchildren; i+=1 ) {
+                var actor= container.getChildAt(i);
+                if ( actorisVisible() && actor.isInAnimationFrame( CAAT.getCurrentSceneTime() ) ) {
+                    var d = actor.getPreferredSize();
+                    if (w < d.width) {
+                        w = d.width;
+                    }
+                    if (h < d.height) {
+                        h = d.height;
+                    }
+                }
+            }
+
+            return new CAAT.Dimension(
+                this.padding.left + this.padding.right + ncols * w + (ncols - 1) * this.hgap,
+                this.padding.top + this.padding.bottom + nrows * h + (nrows - 1) * this.vgap
+            );
+        }
+
+    };
+
+    extend( CAAT.UI.GridLayout, CAAT.UI.LayoutManager );
+
+}());
+
+(function() {
+    CAAT.UI.BorderLayout= function() {
+        CAAT.UI.BorderLayout.superclass.constructor.call(this);
+        return this;
+    };
+
+    CAAT.UI.BorderLayout.prototype= {
+
+        left    : null,
+        right   : null,
+        top     : null,
+        bottom  : null,
+        center  : null,
+
+        addChild : function( child, constraint ) {
+            CAAT.UI.BorderLayout.superclass.addChild.call( this, child, constraint );
+
+            if ( constraint === "center" ) {
+                this.center= child;
+            } else if ( constraint==="left" ) {
+                this.left= child;
+            } else if ( constraint==="right" ) {
+                this.right= child;
+            } else if ( constraint==="top" ) {
+                this.top= child;
+            } else if ( constraint==="bottom" ) {
+                this.bottom= child;
+            }
+        },
+
+        removeChild : function( child ) {
+            if ( this.center===child ) {
+                this.center=null;
+            } else if ( this.left===child ) {
+                this.left= null;
+            } else if ( this.right===child ) {
+                this.right= null;
+            } else if ( this.top===child ) {
+                this.top= null;
+            } else if ( this.bottom===child ) {
+                this.bottom= null;
+            }
+        },
+
+        __getChild : function( constraint ) {
+            if ( constraint==="center" ) {
+                return this.center;
+            } else if ( constraint==="left" ) {
+                return this.left;
+            } else if ( constraint==="right" ) {
+                return this.right;
+            } else if ( constraint==="top" ) {
+                return this.top;
+            } else if ( constraint==="bottom" ) {
+                return this.bottom;
+            }
+        },
+
+        getMinimumLayoutSize : function( container ) {
+            var c, d;
+            var dim= new CAAT.Dimension();
+
+            if ((c=this.__getChild("right")) != null) {
+                d = c.getMinimumSize();
+                dim.width += d.width + this.hgap;
+                dim.height = Math.max(d.height, dim.height);
+            }
+            if ((c=this.__getChild("left")) != null) {
+                d = c.getMinimumSize();
+                dim.width += d.width + this.hgap;
+                dim.height = Math.max(d.height, dim.height);
+            }
+            if ((c=this.__getChild("center")) != null) {
+                d = c.getMinimumSize();
+                dim.width += d.width;
+                dim.height = Math.max(d.height, dim.height);
+            }
+            if ((c=this.__getChild("top")) != null) {
+                d = c.getMinimumSize();
+                dim.width = Math.max(d.width, dim.width);
+                dim.height += d.height + this.vgap;
+            }
+            if ((c=this.__getChild("bottom")) != null) {
+                d = c.getMinimumSize();
+                dim.width = Math.max(d.width, dim.width);
+                dim.height += d.height + this.vgap;
+            }
+
+            dim.width += this.padding.left + this.padding.right;
+            dim.height += this.padding.top + this.padding.bottom;
+
+            return dim;
+        },
+
+        getPreferredLayoutSize : function( container ) {
+            var c, d;
+            var dim= new CAAT.Dimension();
+
+            if ((c=this.__getChild("left")) != null) {
+                d = c.getPreferredSize();
+                dim.width += d.width + this.hgap;
+                dim.height = Math.max(d.height, dim.height);
+            }
+            if ((c=this.__getChild("right")) != null) {
+                d = c.getPreferredSize();
+                dim.width += d.width + this.hgap;
+                dim.height = Math.max(d.height, dim.height);
+            }
+            if ((c=this.__getChild("center")) != null) {
+                d = c.getPreferredSize();
+                dim.width += d.width;
+                dim.height = Math.max(d.height, dim.height);
+            }
+            if ((c=this.__getChild("top")) != null) {
+                d = c.getPreferredSize();
+                dim.width = Math.max(d.width, dim.width);
+                dim.height += d.height + this.vgap;
+            }
+            if ((c=this.__getChild("bottom")) != null) {
+                d = c.getPreferredSize();
+                dim.width = Math.max(d.width, dim.width);
+                dim.height += d.height + this.vgap;
+            }
+
+            dim.width += this.padding.left + this.padding.right;
+            dim.height += this.padding.top + this.padding.bottom;
+
+            return dim;
+        },
+
+        doLayout : function( container ) {
+
+            var top = this.padding.top;
+            var bottom = container.height - this.padding.bottom;
+            var left = this.padding.left;
+            var right = container.width - this.padding.right;
+            var c, d;
+
+            if ((c=this.__getChild("top")) != null) {
+                c.setSize(right - left, c.height);
+                d = c.getPreferredSize();
+                c.setBounds(left, top, right - left, d.height);
+                top += d.height + this.vgap;
+            }
+            if ((c=this.__getChild("bottom")) != null) {
+                c.setSize(right - left, c.height);
+                d = c.getPreferredSize();
+                c.setBounds(left, bottom - d.height, right - left, d.height);
+                bottom -= d.height + this.vgap;
+            }
+            if ((c=this.__getChild("right")) != null) {
+                c.setSize(c.width, bottom - top);
+                d = c.getPreferredSize();
+                c.setBounds(right - d.width, top, d.width, bottom - top);
+                right -= d.width + this.hgap;
+            }
+            if ((c=this.__getChild("left")) != null) {
+                c.setSize(c.width, bottom - top);
+                d = c.getPreferredSize();
+                c.setBounds(left, top, d.width, bottom - top);
+                left += d.width + this.hgap;
+            }
+            if ((c=this.__getChild("center")) != null) {
+                c.setBounds(left, top, right - left, bottom - top);
+            }
+
+            CAAT.UI.BorderLayout.superclass.doLayout.call(this, container);
+        }
+
+
+    };
+
+    extend( CAAT.UI.BorderLayout, CAAT.UI.LayoutManager );
+}());
+
+(function() {
+
+    CAAT.UI.BoxLayout= function() {
+        CAAT.UI.BoxLayout.superclass.constructor.call(this);
+        return this;
+    };
+
+    CAAT.UI.BoxLayout.AXIS= {
+        X : 0,
+        Y : 1
+    };
+
+    CAAT.UI.BoxLayout.ALIGNMENT= {
+        LEFT :  0,
+        RIGHT:  1,
+        CENTER: 2,
+        TOP:    3,
+        BOTTOM: 4
+    };
+
+    CAAT.UI.BoxLayout.prototype= {
+
+        axis    : CAAT.UI.BoxLayout.AXIS.Y,
+        valign  : CAAT.UI.BoxLayout.ALIGNMENT.CENTER,
+        halign  : CAAT.UI.BoxLayout.ALIGNMENT.CENTER,
+
+        setAxis : function( axis ) {
+            this.axis= axis;
+            this.invalidateLayout();
+            return this;
+        },
+
+        setHorizontalAlignment : function(align ) {
+            this.halign= align;
+            this.invalidateLayout();
+            return this;
+        },
+
+        setVerticalAlignment : function( align ) {
+            this.valign= align;
+            this.invalidateLayout();
+            return this;
+        },
+
+        doLayout : function( container ) {
+
+            if ( this.axis===CAAT.UI.BoxLayout.AXIS.Y ) {
+                this.doLayoutVertical( container );
+            } else {
+                this.doLayoutHorizontal( container );
+            }
+
+            CAAT.UI.BoxLayout.superclass.doLayout.call(this, container);
+        },
+
+        doLayoutHorizontal : function( container ) {
+
+            var computedW= 0, computedH=0;
+            var yoffset= 0, xoffset;
+            var i, l, actor;
+
+            // calculamos ancho y alto de los elementos.
+            for( i= 0, l=container.getNumChildren(); i<l; i+=1 ) {
+
+                actor= container.getChildAt(i);
+                if ( actor.isVisible() && actor.isInAnimationFrame( CAAT.getCurrentSceneTime() ) ) {
+                    if ( computedH < actor.height ) {
+                        computedH= actor.height;
+                    }
+
+                    computedW += actor.width;
+                    if ( i>0 ) {
+                        computedW+= this.hgap;
+                    }
+                }
+            }
+
+            switch( this.halign ) {
+                case CAAT.UI.BoxLayout.ALIGNMENT.LEFT:
+                    xoffset= this.padding.left;
+                    break;
+                case CAAT.UI.BoxLayout.ALIGNMENT.RIGHT:
+                    xoffset= container.width - computedW - this.padding.right;
+                    break;
+                default:
+                    xoffset= (container.width - computedW) / 2;
+            }
+
+            for( i= 0, l=container.getNumChildren(); i<l; i+=1 ) {
+                actor= container.getChildAt(i);
+                if ( actor.isVisible() && actor.isInAnimationFrame( CAAT.getCurrentSceneTime() ) ) {
+                    switch( this.valign ) {
+                        case CAAT.UI.BoxLayout.ALIGNMENT.TOP:
+                            yoffset= this.padding.top;
+                            break;
+                        case CAAT.UI.BoxLayout.ALIGNMENT.BOTTOM:
+                            yoffset= container.height - this.padding.bottom - actor.height;
+                            break;
+                        default:
+                            yoffset= (container.height - actor.height) / 2;
+                    }
+
+                    this.__setActorPosition( actor, xoffset, yoffset );
+
+                    xoffset += actor.width + this.hgap;
+                }
+            }
+
+        },
+
+        __setActorPosition : function( actor, xoffset, yoffset ) {
+            if ( this.animated ) {
+                if ( this.newChildren.indexOf( actor )!==-1 ) {
+                    actor.setPosition( xoffset, yoffset );
+                    actor.setScale(0,0);
+                    actor.scaleTo( 1,1, 500, 0,.5,.5, CAAT.UI.LayoutManager.newElementInterpolator );
+                } else {
+                    actor.moveTo( xoffset, yoffset, 500, 0, CAAT.UI.LayoutManager.moveElementInterpolator );
+                }
+            } else {
+                actor.setPosition( xoffset, yoffset );
+            }
+        },
+
+        doLayoutVertical : function( container ) {
+
+            var computedW= 0, computedH=0;
+            var yoffset, xoffset;
+            var i, l, actor;
+
+            // calculamos ancho y alto de los elementos.
+            for( i= 0, l=container.getNumChildren(); i<l; i+=1 ) {
+
+                actor= container.getChildAt(i);
+                if ( actor.isVisible() && actor.isInAnimationFrame( CAAT.getCurrentSceneTime() ) ) {
+                    if ( computedW < actor.width ) {
+                        computedW= actor.width;
+                    }
+
+                    computedH += actor.height;
+                    if ( i>0 ) {
+                        computedH+= this.vgap;
+                    }
+                }
+            }
+
+            switch( this.valign ) {
+                case CAAT.UI.BoxLayout.ALIGNMENT.TOP:
+                    yoffset= this.padding.top;
+                    break;
+                case CAAT.UI.BoxLayout.ALIGNMENT.BOTTOM:
+                    yoffset= container.height - computedH - this.padding.bottom;
+                    break;
+                default:
+                    yoffset= (container.height - computedH) / 2;
+            }
+
+            for( i= 0, l=container.getNumChildren(); i<l; i+=1 ) {
+                actor= container.getChildAt(i);
+                if ( actor.isVisible() && actor.isInAnimationFrame( CAAT.getCurrentSceneTime() ) ) {
+                    switch( this.halign ) {
+                        case CAAT.UI.BoxLayout.ALIGNMENT.LEFT:
+                            xoffset= this.padding.left;
+                            break;
+                        case CAAT.UI.BoxLayout.ALIGNMENT.RIGHT:
+                            xoffset= container.width - this.padding.right - actor.width;
+                            break;
+                        default:
+                            xoffset= (container.width - actor.width) / 2;
+                    }
+
+                    this.__setActorPosition( actor, xoffset, yoffset );
+
+                    yoffset += actor.height + this.vgap;
+                }
+            }
+        },
+
+        getPreferredLayoutSize : function( container ) {
+
+            var dim= new CAAT.Dimension();
+            var computedW= 0, computedH=0;
+            var i, l;
+
+            // calculamos ancho y alto de los elementos.
+            for( i= 0, l=container.getNumChildren(); i<l; i+=1 ) {
+
+                var actor= container.getChildAt(i);
+                if ( actor.isVisible() && actor.isInAnimationFrame( CAAT.getCurrentSceneTime() ) ) {
+                    var ps= actor.getPreferredSize();
+
+                    if ( computedH < ps.height ) {
+                        computedH= ps.height;
+                    }
+                    computedW += ps.width;
+                }
+            }
+
+            dim.width= computedW;
+            dim.height= computedH;
+
+            return dim;
+        },
+
+        getMinimumLayoutSize : function( container ) {
+            var dim= new CAAT.Dimension();
+            var computedW= 0, computedH=0;
+            var i, l;
+
+            // calculamos ancho y alto de los elementos.
+            for( i= 0, l=container.getNumChildren(); i<l; i+=1 ) {
+
+                var actor= container.getChildAt(i);
+                if ( actor.isVisible() && actor.isInAnimationFrame( CAAT.getCurrentSceneTime() ) ) {
+                    var ps= actor.getMinimumSize();
+
+                    if ( computedH < ps.height ) {
+                        computedH= ps.height;
+                    }
+                    computedW += ps.width;
+                }
+            }
+
+            dim.width= computedW;
+            dim.height= computedH;
+
+            return dim;
+        }
+    };
+
+    extend( CAAT.UI.BoxLayout, CAAT.UI.LayoutManager );
+}());
+(function() {
+
+    var DEBUG=0;
+    var JUSTIFY_RATIO= .8;
+
+    /**
+     *
+     * Current applied rendering context information.
+     *
+     * @constuctor
+     * @param ctx
+     * @return {*}
+     */
+    var renderContextStyle= function(ctx) {
+        this.ctx= ctx;
+        return this;
+    };
+
+    renderContextStyle.prototype= {
+
+        ctx         : null,
+
+        defaultFS   : null,
+        font        : null,
+        fontSize    : null,
+        fill        : null,
+        stroke      : null,
+        filled      : null,
+        stroked     : null,
+        strokeSize  : null,
+        italic      : null,
+        bold        : null,
+        alignment   : null,
+        tabSize     : null,
+        shadow      : null,
+        shadowBlur  : null,
+        shadowColor : null,
+
+        sfont       : null,
+
+        chain       : null,
+
+        setDefault : function( defaultStyles ) {
+            this.defaultFS  =   24;
+            this.font       =   "Arial";
+            this.fontSize   =   this.defaultFS;
+            this.fill       =   '#000';
+            this.stroke     =   '#f00';
+            this.filled     =   true;
+            this.stroked    =   false;
+            this.strokeSize =   1;
+            this.italic     =   false;
+            this.bold       =   false;
+            this.alignment  =   "left";
+            this.tabSize    =   75;
+            this.shadow     =   false;
+            this.shadowBlur =   0;
+            this.shadowColor=   "#000";
+
+            for( var style in defaultStyles ) {
+                if ( defaultStyles.hasOwnProperty(style) ) {
+                    this[style]= defaultStyles[style];
+                }
+            }
+
+            this.__setFont();
+
+            return this;
+        },
+
+        setStyle : function( styles ) {
+            if ( typeof styles!=="undefined" ) {
+                for( var style in styles ) {
+                    this[style]= styles[style];
+                }
+            }
+            return this;
+        },
+
+        applyStyle : function() {
+            this.__setFont();
+
+            return this;
+        },
+
+        clone : function( ) {
+            var c= new renderContextStyle( this.ctx );
+            for( var pr in this ) {
+                if ( this.hasOwnProperty(pr) ) {
+                    c[pr]= this[pr];
+                }
+            }
+            /*
+            c.defaultFS  =   this.defaultFS;
+            c.font       =   this.font;
+            c.fontSize   =   this.fontSize;
+            c.fill       =   this.fill;
+            c.stroke     =   this.stroke;
+            c.filled     =   this.filled;
+            c.stroked    =   this.stroked;
+            c.strokeSize =   this.strokeSize;
+            c.italic     =   this.italic;
+            c.bold       =   this.bold;
+            c.alignment  =   this.alignment;
+            c.tabSize    =   this.tabSize;
+            */
+
+            var me= this;
+            while( me.chain ) {
+                me= me.chain;
+                for( var pr in me ) {
+                    if ( c[pr]===null  && me.hasOwnProperty(pr) ) {
+                        c[pr]= me[pr];
+                    }
+                }
+            }
+
+            c.__setFont();
+
+            return c;
+        },
+
+        __getProperty : function( prop ) {
+            var me= this;
+            var res;
+            do {
+                res= me[prop];
+                if ( res!==null ) {
+                    return res;
+                }
+                me= me.chain;
+            } while( me );
+
+            return null;
+        },
+
+        image : function( ctx ) {
+            this.__setShadow( ctx );
+        },
+
+        text : function( ctx, text, x, y ) {
+
+            this.__setShadow( ctx );
+
+            ctx.font= this.__getProperty("sfont");
+
+            if ( this.filled ) {
+                this.__fillText( ctx,text,x,y );
+            }
+            if ( this.stroked ) {
+                this.__strokeText( ctx,text,x,y );
+            }
+        },
+
+        __setShadow : function( ctx ) {
+            if ( this.__getProperty("shadow" ) ) {
+                ctx.shadowBlur= this.__getProperty("shadowBlur");
+                ctx.shadowColor= this.__getProperty("shadowColor");
+            }
+        },
+
+        __fillText : function( ctx, text, x, y ) {
+            ctx.fillStyle= this.__getProperty("fill");
+            ctx.fillText( text, x, y );
+        },
+
+        __strokeText : function( ctx, text, x, y ) {
+            ctx.strokeStyle= this.__getProperty("stroke");
+            ctx.lineWidth= this.__getProperty("strokeSize");
+            ctx.beginPath();
+            ctx.strokeText( text, x, y );
+        },
+
+        __setFont : function() {
+            var italic= this.__getProperty("italic");
+            var bold= this.__getProperty("bold");
+            var fontSize= this.__getProperty("fontSize");
+            var font= this.__getProperty("font");
+
+            this.sfont= (italic ? "italic " : "") +
+                (bold ? "bold " : "") +
+                fontSize + "px " +
+                font;
+
+            this.ctx.font= this.__getProperty("sfont");
+        },
+
+        setBold : function( bool ) {
+            if ( bool!=this.bold ) {
+                this.bold= bool;
+                this.__setFont();
+            }
+        },
+
+        setItalic : function( bool ) {
+            if ( bool!=this.italic ) {
+                this.italic= bool;
+                this.__setFont();
+            }
+        },
+
+        setStroked : function( bool ) {
+            this.stroked= bool;
+        },
+
+        setFilled : function( bool ) {
+            this.filled= bool;
+        },
+
+        getTabPos : function( x ) {
+            var ts= this.__getProperty("tabSize");
+            return (((x/ts)>>0)+1)*ts;
+        },
+
+        setFillStyle : function( style ) {
+            this.fill= style;
+        },
+
+        setStrokeStyle : function( style ) {
+            this.stroke= style;
+        },
+
+        setStrokeSize : function( size ) {
+            this.strokeSize= size;
+        },
+
+        setAlignment : function( alignment ) {
+            this.alignment= alignment;
+        },
+
+        setFontSize : function( size ) {
+            if ( size!==this.fontSize ) {
+                this.fontSize= size;
+                this.__setFont();
+            }
+        }
+    };
+
+    /**
+     * This class keeps track of styles, images, and the current applied style.
+     * @constructor
+     * @return {*}
+     */
+    var renderContext= function() {
+        this.text= "";
+        return this;
+    };
+
+    renderContext.prototype= {
+
+        x           :   0,
+        y           :   0,
+        width       :   0,
+        text        :   null,
+
+        crcs        :   null,   // current rendering context style
+        rcs         :   null,   // rendering content styles stack
+
+        styles      :   null,
+        images      :   null,
+
+        lines       :   null,
+
+        documentHeight  : 0,
+
+        anchorStack     : null,
+
+        __nextLine : function() {
+            this.x= 0;
+            this.currentLine= new DocumentLine();
+            this.lines.push( this.currentLine );
+        },
+
+        /**
+         *
+         * @param image {CAAT.SpriteImage}
+         * @param r {number=}
+         * @param c {number=}
+         * @private
+         */
+        __image : function( image, r, c ) {
+
+
+            var image_width;
+
+            if ( r && c ) {
+                image_width= image.getWidth();
+            } else {
+                image_width= image.getWrappedImageWidth();
+            }
+
+            // la imagen cabe en este sitio.
+            if ( this.width ) {
+                if ( image_width + this.x > this.width && this.x>0 ) {
+                    this.__nextLine();
+                }
+            }
+
+            this.currentLine.addElementImage( new DocumentElementImage(
+                this.x,
+                image,
+                r,
+                c,
+                this.crcs.clone(),
+                this.__getCurrentAnchor() ) );
+
+            this.x+= image_width;
+        },
+
+        __text : function() {
+
+            if ( this.text.length===0 ) {
+                return;
+            }
+
+            var text_width= this.ctx.measureText(this.text).width;
+
+            // la palabra cabe en este sitio.
+            if ( this.width ) {
+                if ( text_width + this.x > this.width && this.x>0 ) {
+                    this.__nextLine();
+                }
+            }
+
+            //this.crcs.text( this.text, this.x, this.y );
+            this.currentLine.addElement( new DocumentElementText(
+                this.text,
+                this.x,
+                text_width,
+                0, //this.crcs.__getProperty("fontSize"), calculated later
+                this.crcs.clone(),
+                this.__getCurrentAnchor() ) ) ;
+
+            this.x+= text_width;
+
+            this.text="";
+        },
+
+        fchar : function( _char ) {
+
+            if ( _char===' ' ) {
+
+                this.__text();
+
+                this.x+= this.ctx.measureText(_char).width;
+                if ( this.width ) {
+                    if ( this.x > this.width ) {
+                        this.__nextLine();
+                    }
+                }
+            } else {
+                this.text+= _char;
+            }
+        },
+
+        end : function() {
+            if ( this.text.length>0 ) {
+                this.__text();
+            }
+
+            var y=0;
+            var lastLineEstimatedDescent= 0;
+            for( var i=0; i<this.lines.length; i++ ) {
+                var inc= this.lines[i].getHeight();
+
+                if ( inc===0 ) {
+                    // lineas vacias al menos tienen tamaño del estilo por defecto
+                    inc= this.styles["default"].fontSize;
+                }
+                y+= inc;
+
+                /**
+                 * add the estimated descent of the last text line to document height's.
+                 * the descent is estimated to be a 20% of font's height.
+                 */
+                if ( i===this.lines.length-1 ) {
+                    lastLineEstimatedDescent= (inc*.25)>>0;
+                }
+
+                this.lines[i].setY(y);
+            }
+
+            this.documentHeight= y + lastLineEstimatedDescent;
+        },
+
+        getDocumentHeight : function() {
+            return this.documentHeight;
+        },
+
+        __getCurrentAnchor : function() {
+            if ( this.anchorStack.length ) {
+                return this.anchorStack[ this.anchorStack.length-1 ];
+            }
+
+            return null;
+        },
+
+        __resetAppliedStyles : function() {
+            this.rcs= [];
+            this.__pushDefaultStyles();
+        },
+
+        __pushDefaultStyles : function() {
+            this.crcs= new renderContextStyle(this.ctx).setDefault( this.styles["default"] );
+            this.rcs.push( this.crcs );
+        },
+
+        __pushStyle : function( style ) {
+            var pcrcs= this.crcs;
+            this.crcs= new renderContextStyle(this.ctx);
+            this.crcs.chain= pcrcs;
+            this.crcs.setStyle( style );
+            this.crcs.applyStyle( );
+
+            this.rcs.push( this.crcs );
+        },
+
+        __popStyle : function() {
+            // make sure you don't remove default style.
+            if ( this.rcs.length>1 ) {
+                this.rcs.pop();
+                this.crcs= this.rcs[ this.rcs.length-1 ];
+                this.crcs.applyStyle();
+            }
+        },
+
+        __popAnchor : function() {
+            if ( this.anchorStack.length> 0 ) {
+                this.anchorStack.pop();
+            }
+        },
+
+        __pushAnchor : function( anchor ) {
+            this.anchorStack.push( anchor );
+        },
+
+        start : function( ctx, styles, images, width ) {
+            this.x=0;
+            this.y=0;
+            this.width= typeof width!=="undefined" ? width : 0;
+            this.ctx= ctx;
+            this.lines= [];
+            this.styles= styles;
+            this.images= images;
+            this.anchorStack= [];
+
+            this.__resetAppliedStyles();
+            this.__nextLine();
+
+        },
+
+        setTag  : function( tag ) {
+
+            var pairs, style;
+
+            this.__text();
+
+            tag= tag.toLowerCase();
+            if ( tag==='b' ) {
+                this.crcs.setBold( true );
+            } else if ( tag==='/b' ) {
+                this.crcs.setBold( false );
+            } else if ( tag==='i' ) {
+                this.crcs.setItalic( true );
+            } else if ( tag==='/i' ) {
+                this.crcs.setItalic( false );
+            } else if ( tag==='stroked' ) {
+                this.crcs.setStroked( true );
+            } else if ( tag==='/stroked' ) {
+                this.crcs.setStroked( false );
+            } else if ( tag==='filled' ) {
+                this.crcs.setFilled( true );
+            } else if ( tag==='/filled' ) {
+                this.crcs.setFilled( false );
+            } else if ( tag==='tab' ) {
+                this.x= this.crcs.getTabPos( this.x );
+            } else if ( tag==='br' ) {
+                this.__nextLine();
+            } else if ( tag==='/a' ) {
+                this.__popAnchor();
+            } else if ( tag==='/style' ) {
+                if ( this.rcs.length>1 ) {
+                    this.__popStyle();
+                } else {
+                    /**
+                     * underflow pop de estilos. eres un cachondo.
+                     */
+                }
+            } else {
+                if ( tag.indexOf("fillcolor")===0 ) {
+                    pairs= tag.split("=");
+                    this.crcs.setFillStyle( pairs[1] );
+                } else if ( tag.indexOf("strokecolor")===0 ) {
+                    pairs= tag.split("=");
+                    this.crcs.setStrokeStyle( pairs[1] );
+                } else if ( tag.indexOf("strokesize")===0 ) {
+                    pairs= tag.split("=");
+                    this.crcs.setStrokeSize( pairs[1]|0 );
+                } else if ( tag.indexOf("fontsize")===0 ) {
+                    pairs= tag.split("=");
+                    this.crcs.setFontSize( pairs[1]|0 );
+                } else if ( tag.indexOf("style")===0 ) {
+                    pairs= tag.split("=");
+                    style= this.styles[ pairs[1] ];
+                    if ( style ) {
+                        this.__pushStyle( style );
+                    }
+                } else if ( tag.indexOf("image")===0) {
+                    pairs= tag.split("=")[1].split(",");
+                    var image= pairs[0];
+                    if ( this.images[image] ) {
+                        var r= 0, c=0;
+                        if ( pairs.length>=3 ) {
+                            r= pairs[1]|0;
+                            c= pairs[2]|0;
+                        }
+                        this.__image( this.images[image], r, c );
+                    }
+                } else if ( tag.indexOf("a=")===0 ) {
+                    pairs= tag.split("=");
+                    this.__pushAnchor( pairs[1] );
+                }
+            }
+        }
+    };
+
+    /**
+     * Abstract document element.
+     * The document contains a collection of DocumentElementText and DocumentElementImage.
+     * @param anchor
+     * @param style
+     * @return {*}
+     * @constructor
+     */
+    var DocumentElement= function( anchor, style ) {
+        this.link= anchor;
+        this.style= style;
+        return this;
+    };
+
+    DocumentElement.prototype= {
+        x       : null,
+        y       : null,
+        width   : null,
+        height  : null,
+
+        style   : null,
+
+        link    : null,
+
+        isLink : function() {
+            return this.link;
+        },
+
+        setLink : function( link ) {
+            this.link= link;
+            return this;
+        },
+
+        getLink : function() {
+            return this.link;
+        },
+
+        contains : function(x,y) {
+            return false;
+        }
+
+    };
+
+    /**
+     * This class represents an image in the document.
+     * @param x
+     * @param image
+     * @param r
+     * @param c
+     * @param style
+     * @param anchor
+     * @return {*}
+     * @constructor
+     */
+    var DocumentElementImage= function( x, image, r, c, style, anchor ) {
+
+        DocumentElementImage.superclass.constructor.call(this, anchor, style);
+
+        this.x= x;
+        this.image= image;
+        this.row= r;
+        this.column= c;
+        this.width= image.getWidth();
+        this.height= image.getHeight();
+
+        if ( this.image instanceof CAAT.SpriteImage ) {
+            this.spriteIndex= r*image.columns+c;
+            this.paint= this.paintSI;
+        }
+
+        return this;
+    };
+
+    DocumentElementImage.prototype= {
+        image   : null,
+        row     : null,
+        column  : null,
+        spriteIndex : null,
+
+        paint : function( ctx ) {
+            this.style.image( ctx );
+            ctx.drawImage( this.image, this.x, -this.height+1);
+            if ( DEBUG ) {
+                ctx.strokeRect( this.x, -this.height+1, this.width, this.height );
+            }
+        },
+
+        paintSI : function( ctx ) {
+            this.style.image( ctx );
+            this.image.setSpriteIndex( this.spriteIndex );
+            this.image.paint( { ctx: ctx }, 0, this.x,  -this.height+1 );
+            if ( DEBUG ) {
+                ctx.strokeRect( this.x, -this.height+1, this.width, this.height );
+            }
+        },
+
+        getHeight : function() {
+            return this.image instanceof CAAT.SpriteImage ? this.image.singleHeight : this.image.height;
+        },
+
+        getFontMetrics : function() {
+            return null;
+        },
+
+        contains : function(x,y) {
+            return x>=this.x && x<=this.x+this.width && y>=this.y && y<this.y + this.height;
+        },
+
+        setYPosition : function( baseline ) {
+            this.y= baseline - this.height + 1;
+        }
+
+    };
+
+    /**
+     * This class represents a text in the document. The text will have applied the styles selected
+     * when it was defined.
+     * @param text
+     * @param x
+     * @param width
+     * @param height
+     * @param style
+     * @param anchor
+     * @return {*}
+     * @constructor
+     */
+    var DocumentElementText= function( text,x,width,height,style, anchor) {
+
+        DocumentElementText.superclass.constructor.call(this, anchor, style);
+
+        this.x=         x;
+        this.y=         0;
+        this.width=     width;
+        this.text=      text;
+        this.style=     style;
+        this.fm=        CAAT.Font.getFontMetrics( style.sfont );
+        this.height=    this.fm.height;
+
+        return this;
+    };
+
+    DocumentElementText.prototype= {
+
+        text    : null,
+        style   : null,
+        fm      : null,
+
+        bl      : null,     // where baseline was set. current 0 in ctx.
+
+        paint : function( ctx ) {
+            this.style.text( ctx, this.text, this.x, 0 );
+            if ( DEBUG ) {
+                ctx.strokeRect( this.x, -this.fm.ascent, this.width, this.height);
+            }
+        },
+
+        getHeight : function() {
+            return this.fm.height;
+        },
+
+        getFontMetrics : function() {
+            return this.fm; //CAAT.Font.getFontMetrics( this.style.sfont);
+        },
+
+        contains : function( x, y ) {
+            return x>= this.x && x<=this.x+this.width &&
+                y>= this.y && y<= this.y+this.height;
+        },
+
+        setYPosition : function( baseline ) {
+            this.bl= baseline;
+            this.y= baseline - this.fm.ascent;
+        }
+    };
+
+    extend( DocumentElementImage, DocumentElement );
+    extend( DocumentElementText, DocumentElement );
+
+    /**
+     * This class represents a document line.
+     * It contains a collection of DocumentElement objects.
+     * @return {*}
+     * @constructor
+     */
+    var DocumentLine= function() {
+        this.elements= [];
+        return this;
+    }
+
+    DocumentLine.prototype= {
+        elements    : null,
+        width       : 0,
+        height      : 0,
+        y           : 0,
+        x           : 0,
+        alignment   : null,
+
+        baselinePos : 0,
+
+        addElement : function( element ) {
+            this.width= Math.max( this.width, element.x + element.width );
+            this.height= Math.max( this.height, element.height );
+            this.elements.push( element );
+            this.alignment= element.style.__getProperty("alignment");
+        },
+
+        addElementImage : function( element ) {
+            this.width= Math.max( this.width, element.x + element.width );
+            this.height= Math.max( this.height, element.height );
+            this.elements.push( element );
+        },
+
+        getHeight : function() {
+            return this.height;
+        },
+
+        setY : function( y ) {
+            this.y= y;
+        },
+
+        getY : function() {
+            return this.y;
+        },
+
+        paint : function( ctx ) {
+            ctx.save();
+            ctx.translate(this.x,this.y + this.baselinePos );
+
+            for( var i=0; i<this.elements.length; i++ ) {
+                this.elements[i].paint(ctx);
+            }
+
+            ctx.restore();
+
+        },
+
+        setAlignment : function( width ) {
+            if ( this.alignment==="center" ) {
+                this.x= (width - this.width)/2;
+            } else if ( this.alignment==="right" ) {
+                this.x= width - this.width;
+            } else if ( this.alignment==="justify" ) {
+
+                // justify: only when text overflows further than document's 80% width
+                if ( this.width / width >= JUSTIFY_RATIO && this.elements.length>1 ) {
+                    var remaining= width - this.width;
+
+                    var forEachElement= (remaining/(this.elements.length-1))|0;
+                    for( var j=1; j<this.elements.length ; j++ ) {
+                        this.elements[j].x+= j*forEachElement;
+                    }
+
+                    remaining= remaining - forEachElement*this.elements.length + 1;
+                    for( var j=this.elements.length-1; j>=remaining; j-- ) {
+                        this.elements[j].x+= (j-remaining);
+                    }
+                }
+            }
+        },
+
+        adjustHeight : function() {
+            var biggestFont=null;
+            var biggestImage=null;
+
+            for( var i=0; i<this.elements.length; i+=1 ) {
+                var elem= this.elements[i];
+
+                var fm= elem.getFontMetrics();
+                if ( null!=fm ) {           // gest a fontMetrics, is a DocumentElementText (text)
+                    if ( !biggestFont ) {
+                        biggestFont= fm;
+                    } else {
+                        if ( fm.ascent > biggestFont.ascent ) {
+                            biggestFont= fm;
+                        }
+                    }
+                } else {                    // no FontMetrics, it is an image.
+                    if (!biggestImage) {
+                        biggestImage= elem;
+                    } else {
+                        if ( elem.getHeight() > elem.getHeight() ) {
+                            biggestImage= elem;
+                        }
+                    }
+                }
+            }
+
+            this.baselinePos= Math.max( biggestFont ? biggestFont.ascent : 0, biggestImage ? biggestImage.getHeight() : 0 );
+            this.height= this.baselinePos + (biggestFont!=null ? biggestFont.descent : 0 );
+
+            for( var i=0; i<this.elements.length; i++ ) {
+                this.elements[i].setYPosition( this.baselinePos );
+            }
+
+            return this.height;
+        },
+
+        /**
+         * Every element is positioned at line's baseline.
+         * @param x
+         * @param y
+         * @private
+         */
+        __getElementAt : function( x, y ) {
+            for( var i=0; i<this.elements.length; i++ ) {
+                var elem= this.elements[i];
+                if ( elem.contains(x,y) ) {
+                    return elem;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /**
+     * This object represents a label object.
+     * A label is a complex presentation object which is able to:
+     * <li>define comples styles
+     * <li>contains multiline text
+     * <li>keep track of per-line baseline regardless of fonts used.
+     * <li>Mix images and text.
+     * <li>Layout text and images in a fixed width or by parsing a free-flowing document
+     * <li>Add anchoring capabilities.
+     *
+     * @return {*}
+     * @constructor
+     */
+    CAAT.UI.Label= function() {
+        CAAT.UI.Label.superclass.constructor.call(this);
+
+        this.rc= new renderContext();
+        this.lines= [];
+        this.styles= {};
+        this.images= {};
+
+        return this;
+    };
+
+    CAAT.UI.Label.prototype= {
+
+        halignment  :   CAAT.UI.ALIGNMENT.LEFT,
+        valignment  :   CAAT.UI.ALIGNMENT.TOP,
+        text        :   null,
+        rc          :   null,
+
+        styles      :   null,
+
+        documentWidth   : 0,
+        documentHeight  : 0,
+        documentX       : 0,
+        documentY       : 0,
+
+        reflow      :   true,
+
+        lines       :   null,   // calculated elements lines...
+
+        images      :   null,
+
+        clickCallback   : null,
+
+        setStyle : function( name, styleData ) {
+            this.styles[ name ]= styleData;
+            return this;
+        },
+
+        addImage : function( name, spriteImage ) {
+            this.images[ name ]= spriteImage;
+            return this;
+        },
+
+        setSize : function(w,h) {
+            CAAT.UI.Label.superclass.setSize.call( this, w, h );
+            this.setText( this.text, this.width );
+            return this;
+        },
+
+        setBounds : function( x,y,w,h ) {
+            CAAT.UI.Label.superclass.setBounds.call( this,x,y,w,h );
+            this.setText( this.text, this.width );
+            return this;
+        },
+
+        setText : function( _text, width ) {
+
+            if ( null===_text ) {
+               return;
+            }
+
+            var cached= this.cached;
+            if ( cached ) {
+                this.stopCacheAsBitmap();
+            }
+
+            this.documentWidth= 0;
+            this.documentHeight= 0;
+
+            this.text= _text;
+
+            var i, l, text;
+            var tag_closes_at_pos, tag;
+            var _char;
+            var ctx= CAAT.currentDirector.ctx;
+            ctx.save();
+
+            text= this.text;
+
+            i=0;
+            l=text.length;
+
+            this.rc.start( ctx, this.styles, this.images, width );
+
+            while( i<l ) {
+                _char= text.charAt(i);
+
+                if ( _char==='\\' ) {
+                    i+=1;
+                    this.rc.fchar( text.charAt(i) );
+                    i+=1;
+
+                } else if ( _char==='<' ) {   // try an enhancement.
+
+                    // try finding another '>' and see whether it matches a tag
+                    tag_closes_at_pos= text.indexOf('>', i+1);
+                    if ( -1!==tag_closes_at_pos ) {
+                        tag= text.substr( i+1, tag_closes_at_pos-i-1 );
+                        if ( tag.indexOf("<")!==-1 ) {
+                            this.rc.fchar( _char );
+                            i+=1;
+                        } else {
+                            this.rc.setTag( tag );
+                            i= tag_closes_at_pos+1;
+                        }
+                    }
+                } else {
+                    this.rc.fchar( _char );
+                    i+= 1;
+                }
+            }
+
+            this.rc.end();
+            this.lines= this.rc.lines;
+
+            this.__calculateDocumentDimension( typeof width==="undefined" ? 0 : width );
+            this.setLinesAlignment();
+
+            ctx.restore();
+
+            this.setPreferredSize( this.documentWidth, this.documentHeight );
+            this.invalidateLayout();
+
+            this.setDocumentPosition();
+
+            if ( cached ) {
+                this.cacheAsBitmap(0,cached);
+            }
+
+            return this;
+        },
+
+        setVerticalAlignment : function( align ) {
+            this.valignment= align;
+            this.setDocumentPosition();
+            return this;
+        },
+
+        setHorizontalAlignment : function( align ) {
+            this.halignment= align;
+            this.setDocumentPosition();
+            return this;
+        },
+
+        setDocumentPosition : function() {
+            var xo=0, yo=0;
+
+            if ( this.valignment===CAAT.UI.ALIGNMENT.CENTER ) {
+                yo= (this.height - this.documentHeight )/2;
+            } else if ( this.valignment===CAAT.UI.ALIGNMENT.BOTTOM ) {
+                yo= this.height - this.documentHeight;
+            }
+
+            if ( this.halignment===CAAT.UI.ALIGNMENT.CENTER ) {
+                xo= (this.width - this.documentWidth )/2;
+            } else if ( this.halignment===CAAT.UI.ALIGNMENT.RIGHT ) {
+                xo= this.width - this.documentWidth;
+            }
+
+            this.documentX= xo;
+            this.documentY= yo;
+        },
+
+        __calculateDocumentDimension : function( suggestedWidth ) {
+            var i;
+            var y= 0;
+
+            this.documentWidth= 0;
+            this.documentHeight= 0;
+            for( i=0; i<this.lines.length; i++ ) {
+                this.lines[i].y =y;
+                this.documentWidth= Math.max( this.documentWidth, this.lines[i].width );
+                this.documentHeight+= this.lines[i].adjustHeight();
+                y+= this.lines[i].getHeight();
+            }
+
+            this.documentWidth= Math.max( this.documentWidth, suggestedWidth );
+
+            return this;
+        },
+
+        setLinesAlignment : function() {
+
+            for( var i=0; i<this.lines.length; i++ ) {
+                this.lines[i].setAlignment( this.documentWidth )
+            }
+        },
+
+        paint : function( director, time ) {
+
+            var ctx= director.ctx;
+
+            if ( !this.cached ) {
+
+                ctx.save();
+
+                ctx.textBaseline="alphabetic";
+                ctx.translate( this.documentX, this.documentY );
+
+                for( var i=0; i<this.lines.length; i++ ) {
+                    var line= this.lines[i];
+                    line.paint( director.ctx );
+
+                    if ( DEBUG ) {
+                        ctx.strokeRect( line.x, line.y, line.width, line.height );
+                    }
+                }
+
+                ctx.restore();
+            } else {
+                if ( this.backgroundImage ) {
+                    this.backgroundImage.paint(director,time,0,0);
+                }
+            }
+        },
+
+        __getDocumentElementAt : function( x, y ) {
+
+            x-= this.documentX;
+            y-= this.documentY;
+
+            for( var i=0; i<this.lines.length; i++ ) {
+                var line= this.lines[i];
+
+                if ( line.x<=x && line.y<=y && line.x+line.width>=x && line.y+line.height>=y ) {
+                    return line.__getElementAt( x - line.x, y - line.y );
+                }
+            }
+
+            return null;
+        },
+
+        mouseExit : function(e) {
+            CAAT.setCursor( "default");
+        },
+
+        mouseMove : function(e) {
+            var elem= this.__getDocumentElementAt(e.x, e.y);
+            if ( elem && elem.getLink() ) {
+                CAAT.setCursor( "pointer");
+            } else {
+                CAAT.setCursor( "default");
+            }
+        },
+
+        mouseClick : function(e) {
+            if ( this.clickCallback ) {
+                var elem= this.__getDocumentElementAt(e.x, e.y);
+                if ( elem.getLink() ) {
+                    this.clickCallback( elem.getLink() );
+                }
+            }
+        },
+
+        setClickCallback : function( callback ) {
+            this.clickCallback= callback;
+            return this;
+        }
+    };
+
+    extend( CAAT.UI.Label, CAAT.Actor );
+
+}());

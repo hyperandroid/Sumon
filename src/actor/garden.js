@@ -846,7 +846,6 @@
 
             /*
              * Para ver toda la textura de pagina
-
             var ciimgb= new CAAT.SpriteImage().initialize( imgb,1,1 );
             ciimgb.xyCache[0][0]= 0;
             ciimgb.xyCache[0][1]= 0;
@@ -857,9 +856,9 @@
             this.directorScene.addChild(
                 new CAAT.Actor().
                         setBounds(0,0,dw,dh).
-                        setBackgroundImage(imgb)
+                        setBackgroundImage(imgb,false).
+                        setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_TO_SIZE )
             );
-
 
             ///////////// some clouds
             this.createClouds();

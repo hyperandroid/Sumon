@@ -1518,7 +1518,8 @@
 
             this.backgroundContainer= new HN.AnimatedBackground().
                     setBounds(0,0,dw,dh).
-                    setBackgroundImage( director.getImage('background-1') ).
+                    setBackgroundImage( director.getImage('background-1'), false ).
+                    setImageTransformation( CAAT.SpriteImage.prototype.TR_FIXED_WIDTH_TO_SIZE ).
                     setInitialOffset( -director.getImage('background-1').height+dh ).
                     setData(this.directorScene, this.context);
             this.directorScene.addChild( this.backgroundContainer );
@@ -1533,6 +1534,14 @@
                 this.directorScene.addChild(cl);
             }
 
+            //////////////////////// game container
+            var gameContainer= new CAAT.ActorContainer();
+            if ( dw>dh ) {
+                gameContainer.setBounds(0,0,700,500);
+            } else {
+                gameContainer.setBounds(0,0,500,700);
+            }
+            this.directorScene.addChild( gameContainer );
 
             //////////////////////// Number Bricks
             this.bricksContainer= new CAAT.ActorContainer().
@@ -1542,18 +1551,6 @@
                         this.gameRows*this.brickHeight )
                 ;
 
-            var TT= 15;
-
-            var bricksCY= dw>dh ?
-                10:
-                (dh-this.brickHeight*this.gameRows) - 105;           // vertically set space for banner.
-            var bricksCX= dw>dh ?
-                bricksCY + TT :
-                (dw - (this.gameColumns * this.brickWidth )) / 2;   // center horizontally
-            this.bricksContainer.setLocation( bricksCX, bricksCY );
-            
-            this.directorScene.addChild(this.bricksContainer);
-
             for( i=0; i<this.gameRows; i++ ) {
                 this.brickActors.push([]);
                 for( j=0; j<this.gameColumns; j++ ) {
@@ -1562,26 +1559,45 @@
                             setLocation(-100,-100);
 
                     this.brickActors[i].push( brick );
-
                     this.bricksContainer.addChild(brick);
                 }
             }
 
-var HH=55;
-var WW=10;
-
             /////////////////////// game indicators.
             var controls= new CAAT.ActorContainer();
             if ( dw>dh ) {
-                controls.setBounds(
-                    this.bricksContainer.x + this.bricksContainer.width + bricksCX + 10 ,
-                    -15,
-                    dw - bricksCX - (this.bricksContainer.x + this.bricksContainer.width) - bricksCX,
-                    this.director.height-40 );
+                controls.setSize( 180, gameContainer.height);
             } else {
-                controls.setBounds(0,0,dw, this.bricksContainer.y-5);
+                controls.setSize( dw, 210 );
             }
-            this.directorScene.addChild( controls );
+
+            ///////////////////// Guess Number
+            var guess= new HN.GuessNumberActor().
+                    setNumbersImage( this.numbersImage, director.getImage('target-number') );
+
+            this.context.addContextListener(guess);
+            controls.addChild(guess);
+
+            ///////////////////// score
+            this.scoreActor= new HN.ScoreActor().
+                    initialize( this.numbersImageSmall, director.getImage('points') );
+            controls.addChild( this.scoreActor );
+            this.context.addContextListener(this.scoreActor);
+
+            ///////////////////// chronometer
+            this.chronoActor= new HN.Chrono().
+                    setImages( director.getImage('time'), director.getImage('timeprogress'));
+
+            this.context.addContextListener(this.chronoActor);
+            controls.addChild(this.chronoActor);
+
+            ///////////////////// Level indicator
+	        this.levelActor= new HN.LevelActor().
+                    initialize( this.numbersImageSmall, dw>dh ? director.getImage('level') : director.getImage('level-small') );
+
+            this.context.addContextListener(this.levelActor);
+
+	        controls.addChild(this.levelActor);
 
             /////////////////////// initialize button
             var restart= new CAAT.Actor();
@@ -1589,10 +1605,7 @@ var WW=10;
                 restart.setAsButton( this.buttonImage.getRef(), 9,10,11,9,
                         function(button) {
                             me.context.timeUp();
-                        }).
-                    setLocation(
-                        (controls.width-this.buttonImage.singleWidth)/2 - 15,
-                        controls.height - this.buttonImage.singleHeight - 15 );
+                        });
             } else {
                 restart.
                     setAsButton(
@@ -1600,8 +1613,7 @@ var WW=10;
                         0,2,0,0,
                         function(button) {
                                 me.context.timeUp();
-                        }).
-                    setLocation( 0,0 );
+                        });
             }
 
             restart.contextEvent= function(event) {
@@ -1620,79 +1632,70 @@ var WW=10;
             this.context.addContextListener(restart);
             controls.addChild(restart);
 
-            ///////////////////// Guess Number
-            var guess= new HN.GuessNumberActor().
-                    setNumbersImage( this.numbersImage, director.getImage('target-number') );
-            if ( dw>dh ) {
-                guess.setLocation( -15, 20, controls.width, 70 );
-            } else {
-                guess.setLocation( WW, HH, controls.width, 70 );
-            }
-            this.context.addContextListener(guess);
-            controls.addChild(guess);
-
-            ///////////////////// score
-            this.scoreActor= new HN.ScoreActor().
-                    initialize( this.numbersImageSmall, director.getImage('points') );
-            if ( dw>dh ) {
-                this.scoreActor.setLocation( 0, 250 );
-            } else {
-                this.scoreActor.setLocation( dw-this.scoreActor.width-WW, HH );
-            }
-            controls.addChild( this.scoreActor );
-            this.context.addContextListener(this.scoreActor);
-
-            ///////////////////// chronometer
-            this.chronoActor= new HN.Chrono().
-                    setImages( director.getImage('time'), director.getImage('timeprogress'));
-            if ( dw>dh )    {
-                this.chronoActor.setLocation( 0, 310 );
-            } else {
-                this.chronoActor.setLocation( dw-this.chronoActor.width-WW, guess.y+guess.height-this.chronoActor.height-15 );
-            }
-            this.context.addContextListener(this.chronoActor);
-            controls.addChild(this.chronoActor);
-
-            ///////////////////// Level indicator
-	        this.levelActor= new HN.LevelActor().
-                    initialize( this.numbersImageSmall, dw>dh ? director.getImage('level') : director.getImage('level-small') );
-            if ( dw>dh )    {
-                this.levelActor.setLocation( 0, 170 );
-            } else {
-                this.levelActor.setLocation(
-                    // espacio entre target number y score actor
-                    ((this.scoreActor.x- (guess.x+guess.width)) - this.levelActor.width)/2 + (guess.x+guess.width),
-                    guess.y+guess.height - this.levelActor.height - 10 );
-
-            }
-            this.context.addContextListener(this.levelActor);
-
-	        controls.addChild(this.levelActor);
-
-
             ////////////////////// Multiplier
             var multiplier;
 
                 var star= director.getImage('multiplier-star');
                 multiplier= new HN.MultiplierActorS().
-                    setLocation(
-                        this.scoreActor.x + this.scoreActor.width - star.width*.8,
-                        this.scoreActor.y - star.height*.3 ).
-                    setImages( this.numbersImage, director.getImage('multiplier'), star, this.directorScene );
-
+                    setImages( this.numbersImage, director.getImage('multiplier'), star, this.directorScene);
+            this.multiplier= multiplier;
             controls.addChild( multiplier );
             this.context.addContextListener(multiplier);
 
+
+///// lay it all out.
+
+            var HH=55;
+            var WW=10;
+
+            if ( dw>dh ) {
+                var layoutControls= new CAAT.UI.BoxLayout().
+                        setAxis( CAAT.UI.BoxLayout.AXIS.Y).
+                        setHorizontalAlignment( CAAT.UI.ALIGNMENT.CENTER).
+                        setVerticalAlignment( CAAT.UI.ALIGNMENT.TOP).
+                        setVGap(0);
+
+                layoutControls.doLayout( controls );
+                this.multiplier.setLocation(
+                    this.scoreActor.x + this.scoreActor.width - star.width*.8,
+                    this.scoreActor.y - star.height*.3 );
+
+                gameContainer.addChild(this.bricksContainer);
+                gameContainer.addChild( controls );
+                gameContainer.centerAt( dw/2, dh/2 );
+
+            } else {
+                guess.setLocation( WW, HH );
+                this.scoreActor.setLocation( dw-this.scoreActor.width-WW, HH );
+                this.chronoActor.setLocation( dw-this.chronoActor.width-WW, guess.y+guess.height-this.chronoActor.height-15 );
+                this.levelActor.setLocation(
+                    // espacio entre target number y score actor
+                    ((this.scoreActor.x- (guess.x+guess.width)) - this.levelActor.width)/2 + (guess.x+guess.width),
+                    guess.y+guess.height - this.levelActor.height - 10 );
+                this.multiplier.setLocation(
+                    this.scoreActor.x + this.scoreActor.width - star.width*.8,
+                    this.scoreActor.y - star.height*.3 );
+
+                gameContainer.addChild( controls );
+                gameContainer.addChild(this.bricksContainer);
+            }
+
+            var layout= new CAAT.UI.BoxLayout().
+                            setAxis( dw>dh ? CAAT.UI.BoxLayout.AXIS.X : CAAT.UI.BoxLayout.AXIS.Y ).
+                            setVerticalAlignment( CAAT.UI.BoxLayout.ALIGNMENT.TOP ).
+                            setHorizontalAlignment( CAAT.UI.BoxLayout.ALIGNMENT.CENTER).
+                            setHGap(25).
+                            setVGap(5).
+                            setPadding( 0,0,10,0 );
+            layout.doLayout( gameContainer );
 
             /////////////////////// particle container
             // just to accelerate events delivery
             if ( !HN.LOWQUALITY ) {
                 this.particleContainer= new CAAT.ActorContainer().
-                        create().
-                        //setBounds(0,0,dw,dh).
                         setBounds( this.bricksContainer.x, this.bricksContainer.y, dw, dh ).
                         enableEvents(false);
-                this.directorScene.addChild( this.particleContainer );
+                gameContainer.addChild( this.particleContainer );
                 this.create_cache();
             }
 
@@ -1705,7 +1708,7 @@ var WW=10;
                         this.gameColumns*this.brickWidth,
                         this.gameRows*this.brickHeight);
             this.selectionPath.enableEvents(false);
-            this.directorScene.addChild(this.selectionPath);
+            gameContainer.addChild(this.selectionPath);
             this.context.addContextListener(this.selectionPath);
 
 
@@ -1740,7 +1743,7 @@ var WW=10;
                 CAAT.Actor.prototype.__paintActor.call(this,director,time);
 
                 fpsc+= CAAT.FRAME_TIME;
-                
+
                 count++;
                 if ( !(count%C) ) {
                     this.__fps= ((C*1000)/fpsc)>>0;
