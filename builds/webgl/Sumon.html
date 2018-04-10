@@ -17,6 +17,19 @@
 
 </script>
     <script type="text/javascript" src="sumon.js"></script>    
+
+    <style>
+        body {
+            font-family: georgia, "lucida grande"
+        }
+
+        a {
+            text-decoration: none;
+            color: #777;
+        }
+
+    </style>
+
 </head>
 <body bgcolor="#000" >
 
@@ -31,8 +44,28 @@
 <audio src='res/sound/suma_mal.mp3' preload='auto' id='sumamal'></audio>
 
 <audio src='res/sound/music.mp3' preload='auto' id='music'></audio>
+
+<div style="position:fixed; top: 10px; font-size: .8em; width:100%; text-align:center; color:#fff">
+    (c) 2010-2011 @Hyperandroid and Ideateca Factory S.A.
+</div>
+
+<div style="text-align:right; position:absolute; width:700px; height:50px; top: 50%; left:50%; margin-left:-350px; margin-top:260px; color:white;">
+    <a href="https://hyperandroid.github.io/Sumon/">Back to other Sumon versions.</a>
+</div>
             
-<div class="game-container" id="gamecontainer" style="left:100px; position: relative; overflow: hidden; width:700px; height:500px;">
+
+<div id="push" style="position:absolute; width:700px; height:50px; top: 50%; left:50%; margin-left:-350px; margin-top:-280px; color:white;">
+    <span>Sumon - WebGL renderer</span>
+    <div style="float:right">
+        <iframe src="http://platform.twitter.com/widgets/tweet_button.html#_=1313101456813&amp;count=horizontal&amp;id=twitter_tweet_button_0&amp;lang=en&amp;original_referer=http%3A%2F%2Fhyperandroid.github.io%2FSumon%2F&amp;text=HyperAndroid%20%7C%20Coding%20experiments.&amp;url=http%3A%2F%2Fhyperandroid.github.io%2FSumon%2F&amp;via=hyperandroid" allowtransparency="true" frameborder="0" scrolling="no" class="twitter-share-button twitter-count-horizontal" style="width: 110px; height: 20px; " title="Twitter For Websites: Tweet Button"></iframe><script type="text/javascript" src="http://platform.twitter.com/widgets.js"></script>
+      </div>
+    <div style="float:right">
+        <iframe src="http://www.facebook.com/plugins/like.php?href=http%3A%2F%2Fhyperandroid.github.io%2FSumon%2F&amp;layout=button_count&amp;show_faces=false&amp;width=120&amp;action=like&amp;font=arial&amp;colorscheme=light&amp;height=21" scrolling="no" frameborder="0" style="border:none; overflow:hidden; width:120px; height:21px;" allowTransparency="true"></iframe>
+      </div>
+    </div>
+</div>
+
+<div style="position:absolute; overflow:hidden; left:50%; top:50%; width:700px; height: 500px; margin-left:-350px; margin-top:-250px;">
 
         <div class="game_holder" id="game"></div>
 
@@ -144,8 +177,6 @@
         </div> <!-- /scores -->
 
 </div>
-
-    <div id="push"></div>
 
 </body>
 </html>
