@@ -1,0 +1,182 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <title>Sumon</title>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-17485141-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+    <style>
+        body {
+            font-family: georgia, "lucida grande"
+        }
+
+        a {
+            text-decoration: none;
+            color: #777;
+        }
+
+    </style>
+
+    <script type="text/javascript" src="sumon.js"></script>
+</head>
+<body bgcolor="#000" style="margin:0; padding:0;" >
+
+<audio src='res/sound/01.mp3' preload='auto' id='audio_01'></audio>
+<audio src='res/sound/10.mp3' preload='auto' id='audio_10'></audio>
+<audio src='res/sound/11.mp3' preload='auto' id='audio_11'></audio>
+<audio src='res/sound/12.mp3' preload='auto' id='audio_12'></audio>
+
+<audio src='res/sound/deseleccionar.mp3' preload='auto' id='deseleccionar'></audio>
+<audio src='res/sound/mostrarpanel.mp3' preload='auto' id='mostrarpanel'></audio>
+<audio src='res/sound/suma_mal.mp3' preload='auto' id='sumamal'></audio>
+
+<audio src='res/sound/music.mp3' preload='auto' id='music'></audio>
+
+<div style="position:fixed; top: 10px; font-size: .8em; width:100%; text-align:center; color:#fff">
+    (c) 2010-2011 @Hyperandroid and Ideateca Factory S.A.
+</div>
+
+<div style="text-align: right; position:absolute; width:700px; height:50px; top: 50%; left:50%; margin-left:-350px; margin-top:260px; color:white;">
+    <a href="https://hyperandroid.github.io/Sumon/">Back to other Sumon versions.</a>
+</div>
+<div style="position:absolute; width:700px; height:50px; top: 50%; left:50%; margin-left:-350px; margin-top:-280px; color:white;">
+    <span>Sumon - (Alpha) DOM/CSS renderer [watch your web inspector]</span>
+    <div style="float:right">
+        <iframe src="http://platform.twitter.com/widgets/tweet_button.html#_=1313101456813&amp;count=horizontal&amp;id=twitter_tweet_button_0&amp;lang=en&amp;original_referer=http%3A%2F%2Fhyperandroid.github.io%2FSumon%2F&amp;text=HyperAndroid%20%7C%20Coding%20experiments.&amp;url=http%3A%2F%2Fhyperandroid.github.io%2FSumon%2F&amp;via=hyperandroid" allowtransparency="true" frameborder="0" scrolling="no" class="twitter-share-button twitter-count-horizontal" style="width: 110px; height: 20px; " title="Twitter For Websites: Tweet Button"></iframe><script type="text/javascript" src="http://platform.twitter.com/widgets.js"></script>
+      </div>
+    <div style="float:right">
+        <iframe src="http://www.facebook.com/plugins/like.php?href=http%3A%2F%2Fhyperandroid.github.io%2FSumon%2F&amp;layout=button_count&amp;show_faces=false&amp;width=120&amp;action=like&amp;font=arial&amp;colorscheme=light&amp;height=21" scrolling="no" frameborder="0" style="border:none; overflow:hidden; width:120px; height:21px;" allowTransparency="true"></iframe>
+      </div>
+    </div>
+</div>
+
+<div style="position:absolute; overflow:hidden; left:50%; top:50%; width:700px; height: 500px; margin-left:-350px; margin-top:-250px;">
+        <div class="game_holder" id="game" style="position:absolute; overflow:hidden; width:700px; height:500px;"></div>
+
+
+
+        <div id="about" style="position:absolute; display: block; left: -700px; filter:alpha(opacity=90); opacity: 0.9; width:700px; height: 500px; background: url(http://static.ideateca.com/fb/images/sumon/pages/about.jpg) no-repeat 0 0; z-index:1000000;">
+          <a id="about_menu" href="javascript:;" onclick="__enterCSS( document.getElementById('about'), 0,0, -700,0, HN.director.currentScene);" style="position:absolute; left: 9px; top: 27px; width:152px; height: 57px; text-align: left; overflow: hidden; text-indent: -9999px">Menœ</a>
+          <a id="about_ideateca" href="http://www.ideateca.com" target="_blank" style="position:absolute; left: 70px; top: 103px; width:267px; height: 237px; text-align: left; overflow: hidden; text-indent: -9999px">Ideteca</a>
+          <a id="about_ludei" href="http://www.ludei.com" target="_blank" style="position:absolute; left: 367px; top: 198px; width:286px; height: 147px; text-align: left; overflow: hidden; text-indent: -9999px">Ludei</a>
+          <a id="about_support" href="mailto:support@ideateca.com?subject=Sumon%20support" target="_blank" style="position:absolute; left: 454px; top: 438px; width: 241px; height: 48px; text-align: left; overflow: hidden; text-indent: -9999px">Ludei</a>
+        </div>
+
+        <div id="tutorial" style="position:absolute; display: block; left: -700px; filter:alpha(opacity=90); opacity: 0.9; width:700px; height: 500px; background: url(http://static.ideateca.com/fb/images/sumon/pages/tutorial.jpg) no-repeat 0 0; z-index:1000000;">
+            <a id="about_menu2" href="javascript:;" onclick="__enterCSS( document.getElementById('tutorial'), 0,0, -700,0, HN.director.currentScene); return false" style="position:absolute; left: 9px; top: 27px; width:152px; height: 57px; text-align: left; overflow: hidden; text-indent: -9999px">Menœ</a>
+        </div>
+
+        <div id="error_canvas" style="position:absolute; display: none; filter:alpha(opacity=90); opacity: 0.9; width:700px; height: 500px; background: url(http://static.ideateca.com/fb/images/sumon/pages/error_canvas.jpg) no-repeat 0 0; z-index:1000000;">
+          <a id="error_firefox" title="Download Firefox" href="http://www.mozilla.com" style="position:absolute; left: 152px; top: 245px; width:90px; height: 90px; text-align: left; overflow: hidden; text-indent: -9999px">Firefox</a>
+          <a id="error_chrome" title="Download Chrome" href="http://www.google.com/chrome" style="position:absolute; left: 254px; top: 245px; width:90px; height: 90px; text-align: left; overflow: hidden; text-indent: -9999px">Chrome</a>
+          <a id="error_opera" title="Download Opera" href="http://www.opera.com" style="position:absolute; left: 357px; top: 245px; width:90px; height: 90px; text-align: left; overflow: hidden; text-indent: -9999px">Opera</a>
+          <a id="error_safari" title="Download Safari" href="http://www.apple.com/safari/" style="position:absolute; left: 458px; top: 245px; width:90px; height: 90px; text-align: left; overflow: hidden; text-indent: -9999px">Safari</a>
+        </div>
+
+        <div id="scores" style="left: 0; top: 0; position:absolute; display: block; left:-700px; filter:alpha(opacity=90); opacity: 0.9; width:570px; height: 394px; padding: 106px 65px 0 65px; background: url(http://static.ideateca.com/fb/images/sumon/pages/scores.jpg) no-repeat 0 0; z-index:1000000;">
+          <a id="scores_menu" href="javascript:;" onclick="__enterCSS( document.getElementById('scores'), 0,0, -700,0, HN.director.currentScene); return false" style="position:absolute; left: 17px; top: 10px; width:151px; height: 45px; text-align: left; overflow: hidden; text-indent: -9999px">Menœ</a>
+
+        <style type="text/css">
+         .__sumonscores {
+          border-collapse: collapse;
+          border: 0;
+          width: 100%;
+          font-family: Georgia, Arial, sans-serif;
+          font-size: 25px;
+          line-height: 1.2em;
+          color: #012238;
+
+         }
+         .__sumonscores td {
+           text-align: center;
+           height: 37px;
+           padding: 0;
+         }
+         .__sumonscores td.__sumonscores_score { width: 145px; }
+         .__sumonscores td.__sumonscores_level { width: 102px; }
+         .__sumonscores td.__sumonscores_mode { width: 152px; }
+         .__sumonscores td.__sumonscores_date { width: 171px; }
+
+        </style>
+          <table class="__sumonscores">
+            <tr>
+              <td id="0_1" class="__sumonscores_score">1.250</td>
+              <td id="0_2" class="__sumonscores_level">15</td>
+              <td id="0_3" class="__sumonscores_mode">Hard</td>
+              <td id="0_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+            <tr>
+              <td id="1_1" class="__sumonscores_score">1.250</td>
+              <td id="1_2" class="__sumonscores_level">15</td>
+              <td id="1_3" class="__sumonscores_mode">Hard</td>
+              <td id="1_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+            <tr>
+              <td id="2_1" class="__sumonscores_score">1.250</td>
+              <td id="2_2" class="__sumonscores_level">15</td>
+              <td id="2_3" class="__sumonscores_mode">Hard</td>
+              <td id="2_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+            <tr>
+              <td id="3_1" class="__sumonscores_score">1.250</td>
+              <td id="3_2" class="__sumonscores_level">15</td>
+              <td id="3_3" class="__sumonscores_mode">Hard</td>
+              <td id="3_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+            <tr>
+              <td id="4_1" class="__sumonscores_score">1.250</td>
+              <td id="4_2" class="__sumonscores_level">15</td>
+              <td id="4_3" class="__sumonscores_mode">Hard</td>
+              <td id="4_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+            <tr>
+              <td id="5_1" class="__sumonscores_score">1.250</td>
+              <td id="5_2" class="__sumonscores_level">15</td>
+              <td id="5_3" class="__sumonscores_mode">Hard</td>
+              <td id="5_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+            <tr>
+              <td id="6_1" class="__sumonscores_score">1.250</td>
+              <td id="6_2" class="__sumonscores_level">15</td>
+              <td id="6_3" class="__sumonscores_mode">Hard</td>
+              <td id="6_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+            <tr>
+              <td id="7_1" class="__sumonscores_score">1.250</td>
+              <td id="7_2" class="__sumonscores_level">15</td>
+              <td id="7_3" class="__sumonscores_mode">Hard</td>
+              <td id="7_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+            <tr>
+              <td id="8_1" class="__sumonscores_score">1.250</td>
+              <td id="8_2" class="__sumonscores_level">15</td>
+              <td id="8_3" class="__sumonscores_mode">Hard</td>
+              <td id="8_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+            <tr>
+              <td id="9_1" class="__sumonscores_score">1.250</td>
+              <td id="9_2" class="__sumonscores_level">15</td>
+              <td id="9_3" class="__sumonscores_mode">Hard</td>
+              <td id="9_4" class="__sumonscores_date">2011/01/16</td>
+            </tr>
+          </table>
+        </div> <!-- /scores -->
+</div>
+
+
+</body>
+</html>
